@@ -9,9 +9,10 @@ class SatRec(NamedTuple):
 
     All fields are jnp.ndarray scalars (float64).
     String flags are encoded as floats:
-      method: 0.0 = near-earth, 1.0 = deep-space
-      isimp: 0.0 = full perturbations, 1.0 = simplified
-      irez: 0.0 = no resonance, 1.0 = synchronous, 2.0 = half-day
+
+    - method: 0.0 = near-earth, 1.0 = deep-space
+    - isimp: 0.0 = full perturbations, 1.0 = simplified
+    - irez: 0.0 = no resonance, 1.0 = synchronous, 2.0 = half-day
     """
     # --- TLE-derived orbital elements ---
     bstar: jnp.ndarray

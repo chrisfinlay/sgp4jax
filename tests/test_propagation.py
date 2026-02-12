@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from sgp4.api import Satrec as RefSatrec, WGS84 as REF_WGS84
 
-from sgp4_jax import tle_to_satrec, propagate, propagate_jd, WGS84
+from sgp4jax import tle_to_satrec, propagate, propagate_jd, WGS84
 
 
 # Near-earth test satellite (ISS-like)

@@ -2,9 +2,9 @@
 
 import jax
 import jax.numpy as jnp
-from sgp4_jax._types import SatRec
-from sgp4_jax._dspace import dspace
-from sgp4_jax._dpper import dpper
+from sgp4jax._types import SatRec
+from sgp4jax._dspace import dspace
+from sgp4jax._dpper import dpper
 
 
 twopi = 2.0 * jnp.pi

@@ -3,11 +3,11 @@
 from math import cos, fabs, pi, pow, sin, sqrt
 import jax.numpy as jnp
 
-from sgp4_jax._types import SatRec
-from sgp4_jax._initl import initl
-from sgp4_jax._dscom import dscom
-from sgp4_jax._dpper import dpper_init
-from sgp4_jax._dsinit import dsinit
+from sgp4jax._types import SatRec
+from sgp4jax._initl import initl
+from sgp4jax._dscom import dscom
+from sgp4jax._dpper import dpper_init
+from sgp4jax._dsinit import dsinit
 
 twopi = 2.0 * pi
 
@@ -266,7 +266,7 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
 
     # Run propagation at t=0 to finalize (mirrors reference sgp4init calling sgp4(satrec, 0.0))
     # For deep-space, this updates aycof, xlcof, con41, x1mth2, x7thm1
-    from sgp4_jax._propagation import sgp4 as _sgp4
+    from sgp4jax._propagation import sgp4 as _sgp4
     r, v, error = _sgp4(satrec, jnp.array(0.0))
 
     # For deep space satellites, the t=0 propagation recomputes some fields
@@ -274,7 +274,7 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
     if method == 1.0:  # deep space
         # Recompute from the perturbed inclination at t=0
         # This mirrors lines 1846-1855 of propagation.py
-        from sgp4_jax._dpper import dpper
+        from sgp4jax._dpper import dpper
         ep = ecco
         xincp = inclo
         nodep_ = nodeo

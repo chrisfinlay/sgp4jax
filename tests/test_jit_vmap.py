@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from sgp4_jax import tle_to_satrec, propagate
+from sgp4jax import tle_to_satrec, propagate
 
 
 LINE1 = '1 25544U 98067A   20045.18587073  .00000950  00000-0  25302-4 0  9990'

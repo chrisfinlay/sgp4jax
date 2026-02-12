@@ -1,8 +1,8 @@
 """TLE parsing - pure Python, not JIT-compatible."""
 
 from math import pi, pow
-from sgp4_jax._constants import WGS84
-from sgp4_jax._sgp4init import sgp4init
+from sgp4jax._constants import WGS84
+from sgp4jax._sgp4init import sgp4init
 
 
 def days2mdhms(year, days):
