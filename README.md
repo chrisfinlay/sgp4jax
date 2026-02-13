@@ -11,6 +11,7 @@ sgp4jax is a pure-JAX reimplementation of the SGP4/SDP4 orbital propagator — t
 - **Vectorizable** — Use `jax.vmap` to propagate thousands of time steps in a single call
 - **Differentiable** — Compute gradients of position/velocity with respect to time or any other input via `jax.grad`
 - **Near-earth and deep-space** — Full SGP4 and SDP4 support, including lunar-solar perturbations and deep-space resonance
+- **TEME → GCRF frame transform** — IAU-2006/2000A precession-nutation model matches Skyfield to sub-millimetre precision
 - **Multiple gravity models** — WGS84, WGS72, and WGS72OLD
 
 ## Installation
@@ -74,6 +75,21 @@ fr = jnp.array(sat.jdsatepochF + 0.5)  # 12 hours after epoch
 r, v, error = sgp4jax.propagate_jd(sat, jd, fr)
 ```
 
+### GCRF output
+
+```python
+# Propagate directly to GCRF (≈ICRS) frame
+r_gcrf, v_gcrf, error = sgp4jax.propagate_gcrf(sat, jnp.array(100.0))
+print(f"Position (GCRF, km): {r_gcrf}")
+
+# Or use Julian Date
+r_gcrf, v_gcrf, error = sgp4jax.propagate_jd_gcrf(sat, jd, fr)
+
+# Or transform manually
+r_teme, v_teme, error = sgp4jax.propagate(sat, jnp.array(100.0))
+r_gcrf, v_gcrf = sgp4jax.teme_to_gcrf(r_teme, v_teme, jd, fr)
+```
+
 ### Gravity models
 
 ```python
@@ -86,7 +102,10 @@ sat_wgs72 = sgp4jax.tle_to_satrec(line1, line2, gravity=sgp4jax.WGS72)
 |---|---|
 | `tle_to_satrec(line1, line2, gravity=WGS84)` | Parse a TLE and initialize a satellite record |
 | `propagate(satrec, tsince)` | Propagate to `tsince` minutes from epoch |
-| `propagate_jd(satrec, jd, fr)` | Propagate to a split Julian Date |
+| `propagate_jd(satrec, jd, fr)` | Propagate to a split Julian Date (TEME) |
+| `propagate_gcrf(satrec, tsince)` | Propagate to `tsince` minutes, return GCRF |
+| `propagate_jd_gcrf(satrec, jd, fr)` | Propagate to split Julian Date, return GCRF |
+| `teme_to_gcrf(r_teme, v_teme, jd, fr)` | Transform TEME vectors to GCRF |
 | `SatRec` | NamedTuple holding all satellite state (JAX arrays) |
 | `make_satrec(**kwargs)` | Create a SatRec with defaults of 0.0 for unspecified fields |
 | `WGS84`, `WGS72`, `WGS72OLD` | Gravity model constants |
@@ -111,7 +130,9 @@ The test suite validates against the reference [python-sgp4](https://github.com/
 
 ## Acknowledgements
 
-This project is a JAX reimplementation of the SGP4/SDP4 algorithm. The implementation is derived from the [python-sgp4](https://github.com/brandon-rhodes/python-sgp4) library by **Brandon Rhodes**, which is itself a Python translation of the original Fortran code by **David Vallado** and others.
+This project is a JAX reimplementation of the SGP4/SDP4 algorithm. The propagation code is derived from the [python-sgp4](https://github.com/brandon-rhodes/python-sgp4) library by **Brandon Rhodes**, which is itself a Python translation of the original Fortran code by **David Vallado** and others.
+
+The TEME-to-GCRF frame transformation (IAU-2006 precession, IAU-2000A nutation, frame bias, GMST/GAST) and the bundled nutation coefficient data are derived from the [Skyfield](https://github.com/skyfielders/python-skyfield) astronomy library, also by **Brandon Rhodes**.
 
 The SGP4 algorithm was originally published in:
 
@@ -123,4 +144,4 @@ The SGP4 algorithm was originally published in:
 
 This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file.
 
-This project contains code derived from [python-sgp4](https://github.com/brandon-rhodes/python-sgp4), which is licensed under the **MIT License** (Copyright (c) 2012-2016 Brandon Rhodes). See [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES) for the full text.
+This project contains code derived from [python-sgp4](https://github.com/brandon-rhodes/python-sgp4) and [python-skyfield](https://github.com/skyfielders/python-skyfield), both by Brandon Rhodes and licensed under the **MIT License**. See [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES) for the full license texts.

@@ -10,6 +10,15 @@ Core Functions
 
 .. autofunction:: sgp4jax.propagate_jd
 
+Frame Transformations
+---------------------
+
+.. autofunction:: sgp4jax.teme_to_gcrf
+
+.. autofunction:: sgp4jax.propagate_gcrf
+
+.. autofunction:: sgp4jax.propagate_jd_gcrf
+
 Data Structures
 ---------------
 

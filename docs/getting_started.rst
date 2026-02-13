@@ -70,6 +70,34 @@ Compute gradients of any scalar function of position/velocity:
    grad_fn = jax.grad(loss)
    g = grad_fn(jnp.array(100.0))
 
+GCRF output
+-----------
+
+SGP4 outputs position and velocity in the TEME (True Equator Mean Equinox)
+frame. To get GCRF (Geocentric Celestial Reference Frame, ≈ICRS) output,
+use the GCRF convenience functions:
+
+.. code-block:: python
+
+   # Propagate directly to GCRF
+   r_gcrf, v_gcrf, error = sgp4jax.propagate_gcrf(sat, jnp.array(100.0))
+   print(f"Position (GCRF, km): {r_gcrf}")
+   print(f"Velocity (GCRF, km/s): {v_gcrf}")
+
+   # Or use Julian Date
+   jd = jnp.array(sat.jdsatepoch)
+   fr = jnp.array(sat.jdsatepochF + 0.5)
+   r_gcrf, v_gcrf, error = sgp4jax.propagate_jd_gcrf(sat, jd, fr)
+
+You can also apply the transform separately with :func:`~sgp4jax.teme_to_gcrf`:
+
+.. code-block:: python
+
+   r_teme, v_teme, error = sgp4jax.propagate(sat, jnp.array(100.0))
+   jd = jnp.array(sat.jdsatepoch)
+   fr = jnp.array(sat.jdsatepochF + 100.0 / 1440.0)
+   r_gcrf, v_gcrf = sgp4jax.teme_to_gcrf(r_teme, v_teme, jd, fr)
+
 Gravity models
 --------------
 
