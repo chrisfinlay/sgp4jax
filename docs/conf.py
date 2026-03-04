@@ -1,9 +1,11 @@
 """Sphinx configuration for sgp4jax."""
 
+from importlib.metadata import version as _version
+
 project = "sgp4jax"
 copyright = "2024, sgp4jax contributors"
 author = "sgp4jax contributors"
-release = "0.1.0"
+release = _version("sgp4jax")
 
 extensions = [
     "sphinx.ext.autodoc",
