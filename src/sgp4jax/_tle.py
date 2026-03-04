@@ -1,7 +1,7 @@
 """TLE parsing - pure Python, not JIT-compatible."""
 
 from math import pi, pow
-from sgp4jax._constants import WGS84
+from sgp4jax._constants import WGS72
 from sgp4jax._sgp4init import sgp4init
 
 
@@ -125,7 +125,7 @@ def tle_to_satrec(line1, line2, gravity=None):
         SatRec NamedTuple
     """
     if gravity is None:
-        gravity = WGS84
+        gravity = WGS72
 
     params = parse_tle(line1, line2)
     return sgp4init(

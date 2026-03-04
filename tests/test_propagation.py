@@ -41,7 +41,7 @@ class TestNearEarth:
 
     def test_epoch_propagation(self):
         """Propagation at epoch (t=0) should give valid results."""
-        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR)
+        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR, gravity=WGS84)
         ref = get_ref_satrec(LINE1_NEAR, LINE2_NEAR)
 
         r, v, err = propagate(sat, jnp.array(0.0))
@@ -55,7 +55,7 @@ class TestNearEarth:
 
     def test_propagation_multiple_times(self):
         """Test at multiple time points."""
-        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR)
+        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR, gravity=WGS84)
         ref = get_ref_satrec(LINE1_NEAR, LINE2_NEAR)
 
         for tsince in [0.0, 10.0, 100.0, 360.0, 720.0, 1440.0]:
@@ -79,7 +79,7 @@ class TestVanguard:
     """Tests for Vanguard satellite (high eccentricity near-earth)."""
 
     def test_propagation(self):
-        sat = tle_to_satrec(LINE1_VANGUARD, LINE2_VANGUARD)
+        sat = tle_to_satrec(LINE1_VANGUARD, LINE2_VANGUARD, gravity=WGS84)
         ref = get_ref_satrec(LINE1_VANGUARD, LINE2_VANGUARD)
 
         for tsince in [0.0, 120.0, 360.0, 720.0, 1440.0]:
@@ -102,7 +102,7 @@ class TestDeepSpace:
     """Tests for deep-space satellites."""
 
     def test_deep_space_propagation(self):
-        sat = tle_to_satrec(LINE1_DEEP, LINE2_DEEP)
+        sat = tle_to_satrec(LINE1_DEEP, LINE2_DEEP, gravity=WGS84)
         ref = get_ref_satrec(LINE1_DEEP, LINE2_DEEP)
 
         for tsince in [0.0, 120.0, 360.0, 720.0, 1440.0]:
@@ -122,7 +122,7 @@ class TestDeepSpace:
 
     def test_molniya_propagation(self):
         """Molniya orbit - high eccentricity deep space with resonance."""
-        sat = tle_to_satrec(LINE1_MOLNIYA, LINE2_MOLNIYA)
+        sat = tle_to_satrec(LINE1_MOLNIYA, LINE2_MOLNIYA, gravity=WGS84)
         ref = get_ref_satrec(LINE1_MOLNIYA, LINE2_MOLNIYA)
 
         for tsince in [0.0, 120.0, 360.0, 720.0]:
@@ -145,7 +145,7 @@ class TestJulianDate:
     """Test the Julian Date convenience function."""
 
     def test_propagate_jd(self):
-        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR)
+        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR, gravity=WGS84)
         ref = get_ref_satrec(LINE1_NEAR, LINE2_NEAR)
 
         jd = jnp.array(ref.jdsatepoch)
@@ -163,7 +163,7 @@ class TestInitFieldComparison:
     """Compare initialized SatRec fields against reference."""
 
     def test_near_earth_fields(self):
-        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR)
+        sat = tle_to_satrec(LINE1_NEAR, LINE2_NEAR, gravity=WGS84)
         # Use pure Python Satrec for field access
         from sgp4.model import Satrec as PySatrec
         from sgp4.earth_gravity import wgs84
@@ -236,7 +236,7 @@ class TestVerificationDataset:
         for line1, line2, startmfe, stopmfe, deltamin in satellites:
             satnum = line1[2:7].strip()
             try:
-                sat = tle_to_satrec(line1, line2)
+                sat = tle_to_satrec(line1, line2, gravity=WGS84)
             except Exception as e:
                 failures.append(f"sat={satnum} init failed: {e}")
                 continue
