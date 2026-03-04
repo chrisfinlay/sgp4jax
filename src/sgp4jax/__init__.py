@@ -4,12 +4,13 @@ import jax
 jax.config.update("jax_enable_x64", True)
 
 from jax import vmap
-from sgp4jax._constants import WGS72OLD, WGS72, WGS84
+import jax.typing
+import jax.numpy as jnp
+from sgp4jax._constants import GravityConstants, WGS72OLD, WGS72, WGS84
 from sgp4jax._types import SatRec, make_satrec
 from sgp4jax._tle import tle_to_satrec
 from sgp4jax._propagation import sgp4 as propagate
 from sgp4jax._frames import teme_to_gcrf
-import jax.numpy as jnp
 
 __all__ = [
     "SatRec", "make_satrec",
@@ -22,7 +23,7 @@ __all__ = [
 ]
 
 
-def tles_to_satrec(tles, gravity=None):
+def tles_to_satrec(tles: list[list[str]], gravity: GravityConstants | None = None) -> SatRec:
     """Parse an array of TLEs and return a batched SatRec.
 
     Args:
@@ -39,17 +40,17 @@ def tles_to_satrec(tles, gravity=None):
     return SatRec(*[jnp.stack(vals) for vals in zip(*satrecs)])
 
 
-def propagate_jd(satrec: SatRec, jd: jnp.ndarray, fr: jnp.ndarray):
+def propagate_jd(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate satellite to Julian Date (jd + fr).
 
     Returns TEME position (km), velocity (km/s), and error code.
     """
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
-    return propagate(satrec, tsince)
+    return propagate(satrec, tsince)  # type: ignore[no-any-return]
 
 
-def propagate_gcrf(satrec: SatRec, tsince: jnp.ndarray):
+def propagate_gcrf(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate satellite and return GCRF position/velocity.
 
     Args:
@@ -68,7 +69,7 @@ def propagate_gcrf(satrec: SatRec, tsince: jnp.ndarray):
     return r_gcrf, v_gcrf, error
 
 
-def propagate_jd_gcrf(satrec: SatRec, jd: jnp.ndarray, fr: jnp.ndarray):
+def propagate_jd_gcrf(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate satellite to Julian Date (jd + fr) and return GCRF.
 
     The input time ``jd + fr`` is interpreted as **UTC**, matching the
@@ -92,7 +93,7 @@ def propagate_jd_gcrf(satrec: SatRec, jd: jnp.ndarray, fr: jnp.ndarray):
     return r_gcrf, v_gcrf, error
 
 
-def gcrf_positions(satrec: SatRec, times_jd: jnp.ndarray):
+def gcrf_positions(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
     """Propagate a single satellite to multiple UTC Julian dates.
 
     Args:
@@ -109,7 +110,7 @@ def gcrf_positions(satrec: SatRec, times_jd: jnp.ndarray):
     return r, v
 
 
-def gcrf_positions_multi(satrec: SatRec, times_jd: jnp.ndarray):
+def gcrf_positions_multi(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
     """Propagate multiple satellites to multiple UTC Julian dates.
 
     Args:

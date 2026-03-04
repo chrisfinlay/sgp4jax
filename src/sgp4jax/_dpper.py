@@ -1,18 +1,26 @@
 """_dpper - deep space long period periodic contributions."""
 
+import jax
 import jax.numpy as jnp
+import jax.typing
 from math import pi
 
 
 twopi = 2.0 * pi
 
+# Shorthand used in signatures below
+_A = jax.typing.ArrayLike
 
-def dpper_init(e3, ee2, peo, pgho, pho, pinco, plo,
-               se2, se3, sgh2, sgh3, sgh4, sh2, sh3,
-               si2, si3, sl2, sl3, sl4,
-               xgh2, xgh3, xgh4, xh2, xh3, xi2, xi3, xl2, xl3, xl4,
-               zmol, zmos,
-               inclo, ep, inclp, nodep, argpp, mp):
+
+def dpper_init(
+    e3: _A, ee2: _A, peo: _A, pgho: _A, pho: _A, pinco: _A, plo: _A,
+    se2: _A, se3: _A, sgh2: _A, sgh3: _A, sgh4: _A, sh2: _A, sh3: _A,
+    si2: _A, si3: _A, sl2: _A, sl3: _A, sl4: _A,
+    xgh2: _A, xgh3: _A, xgh4: _A, xh2: _A, xh3: _A,
+    xi2: _A, xi3: _A, xl2: _A, xl3: _A, xl4: _A,
+    zmol: _A, zmos: _A,
+    inclo: _A, ep: _A, inclp: _A, nodep: _A, argpp: _A, mp: _A,
+) -> tuple[jax.Array, ...]:
     """Deep space periodics at initialization (init='y')."""
     zns = 1.19459e-5
     zes = 0.01675
@@ -49,15 +57,18 @@ def dpper_init(e3, ee2, peo, pgho, pho, pinco, plo,
     ph = shs + shll
 
     # init='y' does NOT apply periodics (only init='n' does)
-    return ep, inclp, nodep, argpp, mp
+    return ep, inclp, nodep, argpp, mp  # type: ignore[return-value]
 
 
-def dpper(e3, ee2, peo, pgho, pho, pinco, plo,
-          se2, se3, sgh2, sgh3, sgh4, sh2, sh3,
-          si2, si3, sl2, sl3, sl4, t,
-          xgh2, xgh3, xgh4, xh2, xh3, xi2, xi3, xl2, xl3, xl4,
-          zmol, zmos,
-          inclo, ep, inclp, nodep, argpp, mp):
+def dpper(
+    e3: _A, ee2: _A, peo: _A, pgho: _A, pho: _A, pinco: _A, plo: _A,
+    se2: _A, se3: _A, sgh2: _A, sgh3: _A, sgh4: _A, sh2: _A, sh3: _A,
+    si2: _A, si3: _A, sl2: _A, sl3: _A, sl4: _A, t: _A,
+    xgh2: _A, xgh3: _A, xgh4: _A, xh2: _A, xh3: _A,
+    xi2: _A, xi3: _A, xl2: _A, xl3: _A, xl4: _A,
+    zmol: _A, zmos: _A,
+    inclo: _A, ep: _A, inclp: _A, nodep: _A, argpp: _A, mp: _A,
+) -> tuple[jax.Array, ...]:
     """Deep space periodics during propagation (init='n').
 
     This is the JIT-compatible version using jnp.
@@ -120,9 +131,9 @@ def dpper(e3, ee2, peo, pgho, pho, pinco, plo,
     alfdp = alfdp + dalf
     betdp = betdp + dbet
     # Sign-preserving modulo (matches reference: nodep % twopi if >= 0 else -(-nodep % twopi))
-    nodep_b = jnp.where(nodep >= 0.0,
-                         nodep % twopi,
-                         -((-nodep) % twopi))
+    nodep_b = jnp.where(nodep >= 0.0,  # type: ignore[operator]
+                         nodep % twopi,  # type: ignore[operator]
+                         -((-nodep) % twopi))  # type: ignore[operator]
     # Note: AFSPC 'a' mode would add twopi for negative nodep here, but
     # we only support improved 'i' mode which skips that correction.
     xls = mp + argpp + pl + pgh + (cosip - pinc * sinip) * nodep_b
@@ -142,4 +153,4 @@ def dpper(e3, ee2, peo, pgho, pho, pinco, plo,
     nodep = jnp.where(use_a, nodep_a, nodep_b)
     mp = jnp.where(use_a, mp_a, mp_b)
 
-    return ep, inclp, nodep, argpp, mp
+    return ep, inclp, nodep, argpp, mp  # type: ignore[return-value]

@@ -1,8 +1,10 @@
 """sgp4init - initialize SGP4 propagator from orbital elements."""
 
 from math import pi
+import jax.typing
 import jax.numpy as jnp
 
+from sgp4jax._constants import GravityConstants
 from sgp4jax._types import SatRec
 from sgp4jax._initl import initl
 from sgp4jax._dscom import dscom
@@ -11,9 +13,24 @@ from sgp4jax._dsinit import dsinit
 
 twopi = 2.0 * pi
 
+_A = jax.typing.ArrayLike
 
-def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
-             xinclo, xmo, xno_kozai, xnodeo, jdsatepoch, jdsatepochF):
+
+def sgp4init(
+    whichconst: GravityConstants,
+    epoch: _A,
+    xbstar: _A,
+    xndot: _A,
+    xnddot: _A,
+    xecco: _A,
+    xargpo: _A,
+    xinclo: _A,
+    xmo: _A,
+    xno_kozai: _A,
+    xnodeo: _A,
+    jdsatepoch: _A,
+    jdsatepochF: _A,
+) -> SatRec:
     """Initialize SGP4 satellite record from orbital elements.
 
     Args:
@@ -70,12 +87,12 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
 
     # Branchless perige adjustments
     sfour_low = jnp.where(perige < 98.0, 20.0, perige - 78.0)
-    sfour = jnp.where(perige < 156.0, sfour_low, sfour)
+    sfour = jnp.where(perige < 156.0, sfour_low, sfour)  # type: ignore[assignment]
     qzms24temp = (120.0 - sfour) / radiusearthkm
     qzms24_low = qzms24temp * qzms24temp * qzms24temp * qzms24temp
     sfour_adj = sfour / radiusearthkm + 1.0
-    qzms24 = jnp.where(perige < 156.0, qzms24_low, qzms24)
-    sfour = jnp.where(perige < 156.0, sfour_adj, sfour)
+    qzms24 = jnp.where(perige < 156.0, qzms24_low, qzms24)  # type: ignore[assignment]
+    sfour = jnp.where(perige < 156.0, sfour_adj, sfour)  # type: ignore[assignment]
 
     pinvsq = 1.0 / posq
     tsi = 1.0 / (ao - sfour)
@@ -90,7 +107,7 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
                   (8.0 + 3.0 * etasq * (8.0 + etasq)))
     cc1 = bstar * cc2
     cc3_nonzero = -2.0 * coef * tsi * j3oj2 * no_unkozai * sinio / ecco
-    cc3 = jnp.where(ecco > 1.0e-4, cc3_nonzero, 0.0)
+    cc3 = jnp.where(ecco > 1.0e-4, cc3_nonzero, 0.0)  # type: ignore[operator]
     x1mth2 = 1.0 - cosio2
     cc4 = 2.0 * no_unkozai * coef1 * ao * omeosq * \
                       (eta * (2.0 + 0.5 * etasq) + ecco *
@@ -115,7 +132,7 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
     xpidot = argpdot + nodedot
     omgcof = bstar * cc3 * jnp.cos(argpo)
     xmcof_nonzero = -x2o3 * coef * bstar / eeta
-    xmcof = jnp.where(ecco > 1.0e-4, xmcof_nonzero, 0.0)
+    xmcof = jnp.where(ecco > 1.0e-4, xmcof_nonzero, 0.0)  # type: ignore[operator]
     nodecf = 3.5 * omeosq * xhdot1 * cc1
     t2cof = 1.5 * cc1
 

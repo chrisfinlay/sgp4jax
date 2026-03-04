@@ -1,17 +1,23 @@
 """_dsinit - deep space initialization for resonance terms."""
 
+import jax
 import jax.numpy as jnp
+import jax.typing
 from math import pi
 
 twopi = 2.0 * pi
 
+_A = jax.typing.ArrayLike
 
-def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
-           ss1, ss2, ss3, ss4, ss5,
-           sz1, sz3, sz11, sz13, sz21, sz23, sz31, sz33,
-           t, tc, gsto, mo, mdot, no, nodeo, nodedot, xpidot,
-           z1, z3, z11, z13, z21, z23, z31, z33,
-           ecco, eccsq, em, argpm, inclm, mm, nm, nodem):
+
+def dsinit(
+    xke: _A, cosim: _A, emsq: _A, argpo: _A, s1: _A, s2: _A, s3: _A, s4: _A, s5: _A, sinim: _A,
+    ss1: _A, ss2: _A, ss3: _A, ss4: _A, ss5: _A,
+    sz1: _A, sz3: _A, sz11: _A, sz13: _A, sz21: _A, sz23: _A, sz31: _A, sz33: _A,
+    t: _A, tc: _A, gsto: _A, mo: _A, mdot: _A, no: _A, nodeo: _A, nodedot: _A, xpidot: _A,
+    z1: _A, z3: _A, z11: _A, z13: _A, z21: _A, z23: _A, z31: _A, z33: _A,
+    ecco: _A, eccsq: _A, em: _A, argpm: _A, inclm: _A, mm: _A, nm: _A, nodem: _A,
+) -> tuple[jax.Array, ...]:
     """Deep space initialization for resonance effects.
 
     Returns tuple of computed coefficients and updated elements.
@@ -31,8 +37,8 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
 
     # Deep space initialization
     # irez: 0 = no resonance, 1 = synchronous, 2 = half-day
-    irez_is_1 = (nm > 0.0034906585) & (nm < 0.0052359877)
-    irez_is_2 = (nm >= 8.26e-3) & (nm <= 9.24e-3) & (em >= 0.5)
+    irez_is_1 = (nm > 0.0034906585) & (nm < 0.0052359877)  # type: ignore[operator]
+    irez_is_2 = (nm >= 8.26e-3) & (nm <= 9.24e-3) & (em >= 0.5)  # type: ignore[operator]
     irez = jnp.where(irez_is_2, 2.0, jnp.where(irez_is_1, 1.0, 0.0))
 
     # Solar terms
@@ -42,7 +48,7 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
     sghs = ss4 * zns * (sz31 + sz33 - 6.0)
     shs_base = -zns * ss2 * (sz21 + sz23)
     # Zero out shs for near-polar orbits
-    near_polar = (inclm < 5.2359877e-2) | (inclm > pi - 5.2359877e-2)
+    near_polar = (inclm < 5.2359877e-2) | (inclm > pi - 5.2359877e-2)  # type: ignore[operator]
     shs = jnp.where(near_polar, 0.0, shs_base)
     shs = jnp.where((sinim != 0.0) & jnp.logical_not(near_polar), shs / sinim, shs)
     sgs = sghs - cosim * shs
@@ -61,7 +67,7 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
 
     # Deep space resonance effects
     dndt = 0.0
-    theta = (gsto + tc * rptim) % twopi
+    theta = (gsto + tc * rptim) % twopi  # type: ignore[operator]
     em = em + dedt * t
     inclm = inclm + didt * t
     argpm = argpm + domdt * t
@@ -100,9 +106,9 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
     g422_b = -3581.690 + 16178.110 * ecco - 24462.770 * eccsq + 12422.520 * eoc
     g520_b1 = -5149.66 + 29936.92 * ecco - 54087.36 * eccsq + 31324.56 * eoc
     g520_b2 = 1464.74 - 4664.75 * ecco + 3763.64 * eccsq
-    g520_b = jnp.where(ecco > 0.715, g520_b1, g520_b2)
+    g520_b = jnp.where(ecco > 0.715, g520_b1, g520_b2)  # type: ignore[operator]
 
-    low_ecc = ecco <= 0.65
+    low_ecc = ecco <= 0.65  # type: ignore[operator]
     g211 = jnp.where(low_ecc, g211_a, g211_b)
     g310 = jnp.where(low_ecc, g310_a, g310_b)
     g322 = jnp.where(low_ecc, g322_a, g322_b)
@@ -116,7 +122,7 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
     g533_b = -37995.780 + 161616.52 * ecco - 229838.20 * eccsq + 109377.94 * eoc
     g521_b = -51752.104 + 218913.95 * ecco - 309468.16 * eccsq + 146349.42 * eoc
     g532_b = -40023.880 + 170470.89 * ecco - 242699.48 * eccsq + 115605.82 * eoc
-    low_ecc2 = ecco < 0.7
+    low_ecc2 = ecco < 0.7  # type: ignore[operator]
     g533 = jnp.where(low_ecc2, g533_a, g533_b)
     g521 = jnp.where(low_ecc2, g521_a, g521_b)
     g532 = jnp.where(low_ecc2, g532_a, g532_b)
@@ -157,7 +163,7 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
     temp = 2.0 * temp1_2 * root54
     d5421_2 = temp * f542 * g521
     d5433_2 = temp * f543 * g533
-    xlamo_2 = (mo + nodeo + nodeo - theta - theta) % twopi
+    xlamo_2 = (mo + nodeo + nodeo - theta - theta) % twopi  # type: ignore[operator]
     xfact_2 = mdot + dmdt + 2.0 * (nodedot + dnodt - rptim) - no
 
     # --- Synchronous resonance (irez == 1) ---
@@ -173,7 +179,7 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
     del2_1 = 2.0 * del1_1 * f220_1 * g200 * q22
     del3_1 = 3.0 * del1_1 * f330 * g300 * q33 * aonv
     del1_1 = del1_1 * f311 * g310_1 * q31 * aonv
-    xlamo_1 = (mo + nodeo + argpo - theta) % twopi
+    xlamo_1 = (mo + nodeo + argpo - theta) % twopi  # type: ignore[operator]
     xfact_1 = mdot + xpidot - rptim + dmdt + domdt + dnodt - no
 
     # Select based on resonance type
@@ -202,7 +208,7 @@ def dsinit(xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
     atime = jnp.where(has_rez, 0.0, atime_0)
     nm = jnp.where(has_rez, no + dndt, nm)
 
-    return (em, argpm, inclm, mm, nm, nodem,
+    return (em, argpm, inclm, mm, nm, nodem,  # type: ignore[return-value]
             irez, atime,
             d2201, d2211, d3210, d3222,
             d4410, d4422, d5220, d5232,

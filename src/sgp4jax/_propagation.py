@@ -2,6 +2,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.typing
 from sgp4jax._types import SatRec
 from sgp4jax._dspace import dspace
 from sgp4jax._dpper import dpper
@@ -10,13 +11,13 @@ from sgp4jax._dpper import dpper
 twopi = 2.0 * jnp.pi
 
 
-def _fmod_python(x, y):
+def _fmod_python(x: jax.typing.ArrayLike, y: jax.typing.ArrayLike) -> jax.Array:
     """Python-style modulo: result has same sign as y (always positive for positive y)."""
-    return x - y * jnp.floor(x / y)
+    return x - y * jnp.floor(x / y)  # type: ignore[return-value]
 
 
 @jax.jit
-def sgp4(satrec: SatRec, tsince: jnp.ndarray):
+def sgp4(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate satellite to time tsince (minutes from epoch).
 
     Args:

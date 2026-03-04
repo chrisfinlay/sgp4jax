@@ -1,11 +1,15 @@
 """TLE parsing - pure Python, not JIT-compatible."""
 
+from __future__ import annotations
+
 from math import pi, pow
-from sgp4jax._constants import WGS72
+from typing import Any
+from sgp4jax._constants import GravityConstants, WGS72
 from sgp4jax._sgp4init import sgp4init
+from sgp4jax._types import SatRec
 
 
-def days2mdhms(year, days):
+def days2mdhms(year: int, days: float) -> tuple[int, int, int, int, float]:
     """Convert day-of-year to month, day, hour, minute, second."""
     second = days * 86400.0
     second = round(second, 6)
@@ -26,7 +30,7 @@ def days2mdhms(year, days):
     return month, day, int(hour), int(minute), second
 
 
-def jday(year, mon, day, hr, minute, sec):
+def jday(year: int, mon: int, day: int, hr: int, minute: int, sec: float) -> tuple[float, float]:
     """Calendar date to Julian date."""
     jd = (367.0 * year
          - 7 * (year + ((mon + 9) // 12.0)) * 0.25 // 1.0
@@ -37,7 +41,7 @@ def jday(year, mon, day, hr, minute, sec):
     return jd, fr
 
 
-def parse_tle(line1, line2):
+def parse_tle(line1: str, line2: str) -> dict[str, Any]:
     """Parse two TLE lines into a dict of orbital elements.
 
     Returns dict with keys matching sgp4init parameters.
@@ -113,7 +117,7 @@ def parse_tle(line1, line2):
     }
 
 
-def tle_to_satrec(line1, line2, gravity=None):
+def tle_to_satrec(line1: str, line2: str, gravity: GravityConstants | None = None) -> SatRec:
     """Parse TLE and initialize a SatRec ready for propagation.
 
     Args:

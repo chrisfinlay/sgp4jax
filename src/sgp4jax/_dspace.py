@@ -2,13 +2,18 @@
 
 import jax
 import jax.numpy as jnp
+import jax.typing
+
+_A = jax.typing.ArrayLike
 
 
-def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
-           d5220, d5232, d5421, d5433,
-           dedt, del1, del2, del3, didt, dmdt, dnodt, domdt,
-           argpo, argpdot, t, tc, gsto, xfact, xlamo, no,
-           atime, em, argpm, inclm, xli, mm, xni, nodem, nm):
+def dspace(
+    irez: _A, d2201: _A, d2211: _A, d3210: _A, d3222: _A, d4410: _A, d4422: _A,
+    d5220: _A, d5232: _A, d5421: _A, d5433: _A,
+    dedt: _A, del1: _A, del2: _A, del3: _A, didt: _A, dmdt: _A, dnodt: _A, domdt: _A,
+    argpo: _A, argpdot: _A, t: _A, tc: _A, gsto: _A, xfact: _A, xlamo: _A, no: _A,
+    atime: _A, em: _A, argpm: _A, inclm: _A, xli: _A, mm: _A, xni: _A, nodem: _A, nm: _A,
+) -> tuple[jax.Array, ...]:
     """Deep space contributions to mean elements.
 
     All inputs/outputs are JAX arrays. Fully JIT-compatible.
@@ -29,7 +34,7 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
 
     # Calculate deep space resonance effects
     dndt = jnp.array(0.0)
-    theta = (gsto + tc * rptim) % twopi
+    theta = (gsto + tc * rptim) % twopi  # type: ignore[operator]
     em = em + dedt * t
     inclm = inclm + didt * t
     argpm = argpm + domdt * t
@@ -41,12 +46,12 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
 
     # Only do resonance if irez != 0
     # Reset conditions
-    should_reset = (atime == 0.0) | (t * atime <= 0.0) | (jnp.abs(t) < jnp.abs(atime))
+    should_reset = (atime == 0.0) | (t * atime <= 0.0) | (jnp.abs(t) < jnp.abs(atime))  # type: ignore[operator]
     atime = jnp.where((irez != 0) & should_reset, 0.0, atime)
     xni = jnp.where((irez != 0) & should_reset, no, xni)
     xli = jnp.where((irez != 0) & should_reset, xlamo, xli)
 
-    delt = jnp.where(t > 0.0, stepp, stepn)
+    delt = jnp.where(t > 0.0, stepp, stepn)  # type: ignore[operator]
 
     def _compute_xndt_xnddt(xli, xni, atime, irez, d2201, d2211, d3210, d3222,
                               d4410, d4422, d5220, d5232, d5421, d5433,
@@ -130,7 +135,7 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
     (atime, xni, xli, _), _ = jax.lax.scan(scan_body, init_carry, None, length=_MAX_ITERS)
 
     # Final interpolation
-    ft = jnp.where(irez != 0, t - atime, 0.0)
+    ft = jnp.where(irez != 0, t - atime, 0.0)  # type: ignore[operator]
 
     xndt, xldot, xnddt = _compute_xndt_xnddt(
         xli, xni, atime, irez, d2201, d2211, d3210, d3222,
@@ -152,4 +157,4 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
     mm = jnp.where(irez != 0, mm_new, mm)
     dndt = jnp.where(irez != 0, dndt_new, dndt)
 
-    return atime, em, argpm, inclm, xli, mm, xni, nodem, dndt, nm
+    return atime, em, argpm, inclm, xli, mm, xni, nodem, dndt, nm  # type: ignore[return-value]

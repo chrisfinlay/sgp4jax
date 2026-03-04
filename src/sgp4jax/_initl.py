@@ -1,25 +1,34 @@
 """_initl - compute auxiliary orbital quantities and Greenwich sidereal time."""
 
+import jax
 import jax.numpy as jnp
+import jax.typing
 from math import pi
 
 twopi = 2.0 * pi
 
 
-def gstime(jdut1):
+def gstime(jdut1: jax.typing.ArrayLike) -> jax.Array:
     """Greenwich sidereal time from Julian date."""
     tut1 = (jdut1 - 2451545.0) / 36525.0
     temp = (-6.2e-6 * tut1 * tut1 * tut1 + 0.093104 * tut1 * tut1 +
             (876600.0 * 3600 + 8640184.812866) * tut1 + 67310.54841)
     deg2rad = pi / 180.0
-    temp = (temp * deg2rad / 240.0) % twopi
+    temp = (temp * deg2rad / 240.0) % twopi  # type: ignore[operator]
 
     temp = jnp.where(temp < 0.0, temp + twopi, temp)
 
     return temp
 
 
-def initl(xke, j2, ecco, epoch, inclo, no):
+def initl(
+    xke: jax.typing.ArrayLike,
+    j2: jax.typing.ArrayLike,
+    ecco: jax.typing.ArrayLike,
+    epoch: jax.typing.ArrayLike,
+    inclo: jax.typing.ArrayLike,
+    no: jax.typing.ArrayLike,
+) -> tuple[jax.Array, ...]:
     """Initialize auxiliary orbital quantities.
 
     Returns:
@@ -56,5 +65,5 @@ def initl(xke, j2, ecco, epoch, inclo, no):
     # Improved mode sidereal time
     gsto = gstime(epoch + 2433281.5)
 
-    return (no, ainv, ao, con41, con42, cosio, cosio2, eccsq,
+    return (no, ainv, ao, con41, con42, cosio, cosio2, eccsq,  # type: ignore[return-value]
             omeosq, posq, rp, rteosq, sinio, gsto)

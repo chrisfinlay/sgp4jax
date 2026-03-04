@@ -1,12 +1,22 @@
 """_dscom - deep space common items for secular and periodics."""
 
+import jax
 import jax.numpy as jnp
+import jax.typing
 from math import pi
 
 twopi = 2.0 * pi
 
 
-def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
+def dscom(
+    epoch: jax.typing.ArrayLike,
+    ep: jax.typing.ArrayLike,
+    argpp: jax.typing.ArrayLike,
+    tc: jax.typing.ArrayLike,
+    inclp: jax.typing.ArrayLike,
+    nodep: jax.typing.ArrayLike,
+    np_: jax.typing.ArrayLike,
+) -> tuple[jax.Array, ...]:
     """Compute deep space common lunar-solar perturbation terms.
 
     Returns tuple of all computed quantities.
@@ -38,7 +48,7 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
     pgho = 0.0
     pho = 0.0
     day = epoch + 18261.5 + tc / 1440.0
-    xnodce = (4.5236020 - 9.2422029e-4 * day) % twopi
+    xnodce = (4.5236020 - 9.2422029e-4 * day) % twopi  # type: ignore[operator]
     stem = jnp.sin(xnodce)
     ctem = jnp.cos(xnodce)
     zcosil = 0.91375164 - 0.03568096 * ctem
@@ -49,7 +59,7 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
     zx = 0.39785416 * stem / zsinil
     zy = zcoshl * ctem + 0.91744867 * zsinhl * stem
     zx = jnp.arctan2(zx, zy)
-    zx = gam + zx - xnodce
+    zx = gam + zx - xnodce  # type: ignore[assignment]
     zcosgl = jnp.cos(zx)
     zsingl = jnp.sin(zx)
 
@@ -117,10 +127,10 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
     sz31 = z31; sz32 = z32; sz33 = z33
 
     # Switch to lunar terms (lsflg == 2)
-    zcosg = zcosgl
-    zsing = zsingl
-    zcosi = zcosil
-    zsini = zsinil
+    zcosg = zcosgl  # type: ignore[assignment]
+    zsing = zsingl  # type: ignore[assignment]
+    zcosi = zcosil  # type: ignore[assignment]
+    zsini = zsinil  # type: ignore[assignment]
     zcosh = zcoshl * cnodm + zsinhl * snodm
     zsinh = snodm * zcoshl - cnodm * zsinhl
     cc = c1l
@@ -171,8 +181,8 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
     s6 = x2 * x3 + x1 * x4
     s7 = x2 * x4 - x1 * x3
 
-    zmol = (4.7199672 + 0.22997150 * day - gam) % twopi
-    zmos = (6.2565837 + 0.017201977 * day) % twopi
+    zmol = (4.7199672 + 0.22997150 * day - gam) % twopi  # type: ignore[operator]
+    zmos = (6.2565837 + 0.017201977 * day) % twopi  # type: ignore[operator]
 
     # Solar perturbation terms
     se2 = 2.0 * ss1 * ss6
@@ -202,7 +212,7 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
     xh2 = -2.0 * s2 * z22
     xh3 = -2.0 * s2 * (z23 - z21)
 
-    return (
+    return (  # type: ignore[return-value]
         snodm, cnodm, sinim, cosim, sinomm,
         cosomm, day, e3, ee2, em,
         emsq, gam, peo, pgho, pho,

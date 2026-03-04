@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import jax
 import jax.numpy as jnp
+import jax.typing
 
 # ---------------------------------------------------------------------------
 # Load nutation coefficient tables at import time
@@ -86,7 +87,7 @@ _fa4 = jnp.array([-0.00024470, -0.00001149, 0.00000417, -0.00003169,
 # Rotation matrices
 # ---------------------------------------------------------------------------
 
-def _rot_x(theta):
+def _rot_x(theta: jax.typing.ArrayLike) -> jax.Array:
     """Active rotation about the x-axis."""
     c = jnp.cos(theta)
     s = jnp.sin(theta)
@@ -95,7 +96,7 @@ def _rot_x(theta):
                        [0.0,   s,   c]])
 
 
-def _rot_z(theta):
+def _rot_z(theta: jax.typing.ArrayLike) -> jax.Array:
     """Active rotation about the z-axis."""
     c = jnp.cos(theta)
     s = jnp.sin(theta)
@@ -108,7 +109,7 @@ def _rot_z(theta):
 # Frame bias  (ICRS → J2000)
 # ---------------------------------------------------------------------------
 
-def _frame_bias():
+def _frame_bias() -> jax.Array:
     """Return the ICRS-to-J2000 frame bias matrix (constant)."""
     xi0 = -0.0166170 * _ASEC2RAD
     eta0 = -0.0068192 * _ASEC2RAD
@@ -138,7 +139,7 @@ _B = _frame_bias()
 # Precession  (IAU 2006, Capitaine et al. 2003)
 # ---------------------------------------------------------------------------
 
-def _precession_matrix(T):
+def _precession_matrix(T: jax.typing.ArrayLike) -> jax.Array:
     """IAU-2006 precession matrix P for TDB centuries *T* from J2000."""
     eps0 = 84381.406
 
@@ -192,9 +193,9 @@ def _precession_matrix(T):
 # Mean obliquity
 # ---------------------------------------------------------------------------
 
-def _mean_obliquity(T):
+def _mean_obliquity(T: jax.typing.ArrayLike) -> jax.Array:
     """Mean obliquity of the ecliptic in arcseconds (TDB centuries *T*)."""
-    return ((((-0.0000000434 * T
+    return ((((-0.0000000434 * T  # type: ignore[return-value]
                - 0.000000576) * T
               + 0.00200340) * T
              - 0.0001831) * T
@@ -205,7 +206,7 @@ def _mean_obliquity(T):
 # Fundamental arguments for lunisolar nutation
 # ---------------------------------------------------------------------------
 
-def _fundamental_arguments(t):
+def _fundamental_arguments(t: jax.typing.ArrayLike) -> jax.Array:
     """5 Delaunay arguments in radians for TT centuries *t*."""
     a = _fa4 * t
     a = (a + _fa3) * t
@@ -220,7 +221,7 @@ def _fundamental_arguments(t):
 # IAU 2000A nutation  (678 lunisolar + 687 planetary terms)
 # ---------------------------------------------------------------------------
 
-def _iau2000a(T):
+def _iau2000a(T: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
     """Return (dpsi, deps) in radians for TT centuries *T* from J2000.
 
     Full IAU-2000A model with 678 lunisolar and 687 planetary terms.
@@ -242,7 +243,7 @@ def _iau2000a(T):
 
     # --- planetary ---
     pa = t * _anomaly_coefficient + _anomaly_constant   # (14,)
-    pa = pa.at[-1].multiply(t)  # general precession term *= t
+    pa = pa.at[-1].multiply(t)  # type: ignore[union-attr]  # general precession term *= t
 
     parg = _napl_t @ pa  # (687,)
     psarg = jnp.sin(parg)
@@ -261,7 +262,7 @@ def _iau2000a(T):
 # Equation of the equinoxes (including complementary terms)
 # ---------------------------------------------------------------------------
 
-def _equation_of_the_equinoxes_complementary_terms(T):
+def _equation_of_the_equinoxes_complementary_terms(T: jax.typing.ArrayLike) -> jax.Array:
     """Complementary terms of the equation of the equinoxes, in radians.
 
     *T* is TT centuries from J2000.
@@ -346,7 +347,7 @@ def _equation_of_the_equinoxes_complementary_terms(T):
 # Nutation matrix
 # ---------------------------------------------------------------------------
 
-def _nutation_matrix(mean_obl, true_obl, dpsi):
+def _nutation_matrix(mean_obl: jax.typing.ArrayLike, true_obl: jax.typing.ArrayLike, dpsi: jax.typing.ArrayLike) -> jax.Array:
     """Build the 3x3 nutation matrix from obliquity and nutation angles.
 
     All arguments in radians.
@@ -373,27 +374,27 @@ def _nutation_matrix(mean_obl, true_obl, dpsi):
 # GMST 1982  (SGP4-specific, from AIAA 2006-6753 Appendix C)
 # ---------------------------------------------------------------------------
 
-def _theta_gmst1982(jd_ut1, frac_ut1):
+def _theta_gmst1982(jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
     """GMST angle in radians and its rate (rad/day of UT1)."""
     t = (jd_ut1 - _T0 + frac_ut1) / 36525.0
     g = 67310.54841 + (8640184.812866 + (0.093104 + (-6.2e-6) * t) * t) * t
     dg = 8640184.812866 + (0.093104 * 2.0 + (-6.2e-6 * 3.0) * t) * t
     theta = jnp.fmod(jnp.fmod(jd_ut1, 1.0) + frac_ut1 + jnp.fmod(g / _DAY_S, 1.0), 1.0) * _tau
     theta_dot = (1.0 + dg / (_DAY_S * 36525.0)) * _tau
-    return theta, theta_dot
+    return theta, theta_dot  # type: ignore[return-value]
 
 
 # ---------------------------------------------------------------------------
 # GMST (equinox method, matching Skyfield earthlib.sidereal_time)
 # ---------------------------------------------------------------------------
 
-def _earth_rotation_angle(jd_ut1, frac_ut1):
+def _earth_rotation_angle(jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike) -> jax.Array:
     """Earth Rotation Angle (fraction of full rotation)."""
     th = 0.7790572732640 + 0.00273781191135448 * (jd_ut1 - _T0 + frac_ut1)
     return jnp.fmod(jnp.fmod(th, 1.0) + jnp.fmod(jd_ut1, 1.0) + frac_ut1, 1.0)
 
 
-def _gmst_hours(jd_ut1, frac_ut1, jd_tdb, frac_tdb):
+def _gmst_hours(jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike, jd_tdb: jax.typing.ArrayLike, frac_tdb: jax.typing.ArrayLike) -> jax.Array:
     """Greenwich Mean Sidereal Time in hours (equinox method)."""
     theta = _earth_rotation_angle(jd_ut1, frac_ut1)
     t = (jd_tdb - _T0 + frac_tdb) / 36525.0
@@ -410,7 +411,7 @@ def _gmst_hours(jd_ut1, frac_ut1, jd_tdb, frac_tdb):
 # GAST  (Greenwich Apparent Sidereal Time)
 # ---------------------------------------------------------------------------
 
-def _gast_hours(T_tt, dpsi, mean_obl_rad, jd_ut1, frac_ut1, jd_tdb, frac_tdb):
+def _gast_hours(T_tt: jax.typing.ArrayLike, dpsi: jax.typing.ArrayLike, mean_obl_rad: jax.typing.ArrayLike, jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike, jd_tdb: jax.typing.ArrayLike, frac_tdb: jax.typing.ArrayLike) -> jax.Array:
     """GAST in hours, matching Skyfield's Time.gast property."""
     c_terms = _equation_of_the_equinoxes_complementary_terms(T_tt)
     eq_eq = dpsi * jnp.cos(mean_obl_rad) + c_terms
@@ -422,7 +423,7 @@ def _gast_hours(T_tt, dpsi, mean_obl_rad, jd_ut1, frac_ut1, jd_tdb, frac_tdb):
 # TDB - TT approximation (matching Skyfield)
 # ---------------------------------------------------------------------------
 
-def _tdb_minus_tt(jd_tt, frac_tt):
+def _tdb_minus_tt(jd_tt: jax.typing.ArrayLike, frac_tt: jax.typing.ArrayLike) -> jax.Array:
     """TDB - TT in seconds (Fairhead & Bretagnon 1990 approximation)."""
     t = (jd_tt - _T0 + frac_tt) / 36525.0
     # Simplified; the dominant term is sufficient for our precision needs
@@ -433,7 +434,7 @@ def _tdb_minus_tt(jd_tt, frac_tt):
 # Public API: TEME → GCRF
 # ---------------------------------------------------------------------------
 
-def _delta_t(jd_ut1, frac_ut1):
+def _delta_t(jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike) -> jax.Array:
     """Approximate delta_t = TT - UT1 in seconds.
 
     Uses table-based interpolation of observed/predicted values from IERS
@@ -595,14 +596,14 @@ _LEAP_SECOND_TAI_UTC = jnp.array([
 ], dtype=jnp.float64)
 
 
-def _leap_seconds(jd_utc):
+def _leap_seconds(jd_utc: jax.typing.ArrayLike) -> jax.Array:
     """Return cumulative TAI − UTC leap seconds at the given UTC Julian date."""
     idx = jnp.searchsorted(_LEAP_SECOND_JD, jd_utc, side='right') - 1
     idx = jnp.clip(idx, 0, len(_LEAP_SECOND_TAI_UTC) - 1)
     return _LEAP_SECOND_TAI_UTC[idx]
 
 
-def _ut1_to_utc(jd_ut1, frac_ut1):
+def _ut1_to_utc(jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
     """Convert UT1 Julian date to UTC Julian date.
 
     Uses delta_T and the leap seconds table to compute:
@@ -617,11 +618,16 @@ def _ut1_to_utc(jd_ut1, frac_ut1):
     ls = _leap_seconds(jd_ut1 + frac_ut1)
     utc_minus_ut1 = (dt - 32.184 - ls) / _DAY_S
     frac_utc = frac_ut1 + utc_minus_ut1
-    return jd_ut1, frac_utc
+    return jd_ut1, frac_utc  # type: ignore[return-value]
 
 
 @jax.jit
-def teme_to_gcrf(r_teme, v_teme, jd, fr):
+def teme_to_gcrf(
+    r_teme: jax.typing.ArrayLike,
+    v_teme: jax.typing.ArrayLike,
+    jd: jax.typing.ArrayLike,
+    fr: jax.typing.ArrayLike,
+) -> tuple[jax.Array, jax.Array]:
     """Transform position/velocity from TEME to GCRF (≈ICRS).
 
     Replicates Skyfield's ``EarthSatellite._at()`` transformation chain:
