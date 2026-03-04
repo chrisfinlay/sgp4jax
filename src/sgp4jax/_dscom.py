@@ -1,6 +1,7 @@
 """_dscom - deep space common items for secular and periodics."""
 
-from math import atan2, cos, pi, sin, sqrt
+import jax.numpy as jnp
+from math import pi
 
 twopi = 2.0 * pi
 
@@ -21,15 +22,15 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
 
     nm = np_
     em = ep
-    snodm = sin(nodep)
-    cnodm = cos(nodep)
-    sinomm = sin(argpp)
-    cosomm = cos(argpp)
-    sinim = sin(inclp)
-    cosim = cos(inclp)
+    snodm = jnp.sin(nodep)
+    cnodm = jnp.cos(nodep)
+    sinomm = jnp.sin(argpp)
+    cosomm = jnp.cos(argpp)
+    sinim = jnp.sin(inclp)
+    cosim = jnp.cos(inclp)
     emsq = em * em
     betasq = 1.0 - emsq
-    rtemsq = sqrt(betasq)
+    rtemsq = jnp.sqrt(betasq)
 
     peo = 0.0
     pinco = 0.0
@@ -38,19 +39,19 @@ def dscom(epoch, ep, argpp, tc, inclp, nodep, np_):
     pho = 0.0
     day = epoch + 18261.5 + tc / 1440.0
     xnodce = (4.5236020 - 9.2422029e-4 * day) % twopi
-    stem = sin(xnodce)
-    ctem = cos(xnodce)
+    stem = jnp.sin(xnodce)
+    ctem = jnp.cos(xnodce)
     zcosil = 0.91375164 - 0.03568096 * ctem
-    zsinil = sqrt(1.0 - zcosil * zcosil)
+    zsinil = jnp.sqrt(1.0 - zcosil * zcosil)
     zsinhl = 0.089683511 * stem / zsinil
-    zcoshl = sqrt(1.0 - zsinhl * zsinhl)
+    zcoshl = jnp.sqrt(1.0 - zsinhl * zsinhl)
     gam = 5.8351514 + 0.0019443680 * day
     zx = 0.39785416 * stem / zsinil
     zy = zcoshl * ctem + 0.91744867 * zsinhl * stem
-    zx = atan2(zx, zy)
+    zx = jnp.arctan2(zx, zy)
     zx = gam + zx - xnodce
-    zcosgl = cos(zx)
-    zsingl = sin(zx)
+    zcosgl = jnp.cos(zx)
+    zsingl = jnp.sin(zx)
 
     # Solar terms (lsflg == 1)
     zcosg = zcosgs

@@ -1,6 +1,6 @@
 """sgp4init - initialize SGP4 propagator from orbital elements."""
 
-from math import cos, fabs, pi, pow, sin, sqrt
+from math import pi
 import jax.numpy as jnp
 
 from sgp4jax._types import SatRec
@@ -57,181 +57,195 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
      omeosq, posq, rp, rteosq, sinio, gsto) = initl(
         xke, j2, ecco, epoch, inclo, no_kozai)
 
-    a = pow(no_unkozai * tumin, -2.0 / 3.0)
+    a = (no_unkozai * tumin) ** (-2.0 / 3.0)
     alta = a * (1.0 + ecco) - 1.0
     altp = a * (1.0 - ecco) - 1.0
 
-    # Initialize all coefficients
-    isimp = 0
-    method = 0.0  # 0.0 = near-earth
-    irez = 0.0
+    # Branchless isimp: 1 if rp < 220/RE + 1, else 0
+    isimp = jnp.where(rp < 220.0 / radiusearthkm + 1.0, 1.0, 0.0)
 
-    cc1 = 0.0; cc4 = 0.0; cc5 = 0.0
-    d2 = 0.0; d3 = 0.0; d4 = 0.0
-    delmo = 0.0; eta = 0.0; argpdot = 0.0; omgcof = 0.0
-    sinmao = 0.0; t2cof = 0.0; t3cof = 0.0; t4cof = 0.0; t5cof = 0.0
-    x1mth2 = 0.0; x7thm1 = 0.0; mdot = 0.0; nodedot = 0.0
-    xlcof = 0.0; xmcof = 0.0; nodecf = 0.0; aycof = 0.0
+    sfour = ss
+    qzms24 = qzms2t
+    perige = (rp - 1.0) * radiusearthkm
 
-    # Deep space vars
-    d2201 = 0.0; d2211 = 0.0; d3210 = 0.0; d3222 = 0.0
-    d4410 = 0.0; d4422 = 0.0; d5220 = 0.0; d5232 = 0.0
-    d5421 = 0.0; d5433 = 0.0; dedt = 0.0; del1 = 0.0; del2 = 0.0; del3 = 0.0
-    didt = 0.0; dmdt = 0.0; dnodt = 0.0; domdt = 0.0
-    e3 = 0.0; ee2 = 0.0; peo = 0.0; pgho = 0.0; pho = 0.0
-    pinco = 0.0; plo = 0.0; se2 = 0.0; se3 = 0.0
-    sgh2 = 0.0; sgh3 = 0.0; sgh4 = 0.0; sh2 = 0.0; sh3 = 0.0
-    si2 = 0.0; si3 = 0.0; sl2 = 0.0; sl3 = 0.0; sl4 = 0.0
-    xfact = 0.0; xgh2 = 0.0; xgh3 = 0.0; xgh4 = 0.0
-    xh2 = 0.0; xh3 = 0.0; xi2 = 0.0; xi3 = 0.0
-    xl2 = 0.0; xl3 = 0.0; xl4 = 0.0; xlamo = 0.0
-    xli = 0.0; xni = 0.0; zmol = 0.0; zmos = 0.0; atime = 0.0
+    # Branchless perige adjustments
+    sfour_low = jnp.where(perige < 98.0, 20.0, perige - 78.0)
+    sfour = jnp.where(perige < 156.0, sfour_low, sfour)
+    qzms24temp = (120.0 - sfour) / radiusearthkm
+    qzms24_low = qzms24temp * qzms24temp * qzms24temp * qzms24temp
+    sfour_adj = sfour / radiusearthkm + 1.0
+    qzms24 = jnp.where(perige < 156.0, qzms24_low, qzms24)
+    sfour = jnp.where(perige < 156.0, sfour_adj, sfour)
 
-    if omeosq >= 0.0 or no_unkozai >= 0.0:
+    pinvsq = 1.0 / posq
+    tsi = 1.0 / (ao - sfour)
+    eta = ao * ecco * tsi
+    etasq = eta * eta
+    eeta = ecco * eta
+    psisq = jnp.abs(1.0 - etasq)
+    coef = qzms24 * tsi ** 4.0
+    coef1 = coef / psisq ** 3.5
+    cc2 = coef1 * no_unkozai * (ao * (1.0 + 1.5 * etasq + eeta *
+                  (4.0 + etasq)) + 0.375 * j2 * tsi / psisq * con41 *
+                  (8.0 + 3.0 * etasq * (8.0 + etasq)))
+    cc1 = bstar * cc2
+    cc3_nonzero = -2.0 * coef * tsi * j3oj2 * no_unkozai * sinio / ecco
+    cc3 = jnp.where(ecco > 1.0e-4, cc3_nonzero, 0.0)
+    x1mth2 = 1.0 - cosio2
+    cc4 = 2.0 * no_unkozai * coef1 * ao * omeosq * \
+                      (eta * (2.0 + 0.5 * etasq) + ecco *
+                      (0.5 + 2.0 * etasq) - j2 * tsi / (ao * psisq) *
+                      (-3.0 * con41 * (1.0 - 2.0 * eeta + etasq *
+                      (1.5 - 0.5 * eeta)) + 0.75 * x1mth2 *
+                      (2.0 * etasq - eeta * (1.0 + etasq)) * jnp.cos(2.0 * argpo)))
+    cc5 = 2.0 * coef1 * ao * omeosq * (1.0 + 2.75 *
+                  (etasq + eeta) + eeta * etasq)
+    cosio4 = cosio2 * cosio2
+    temp1 = 1.5 * j2 * pinvsq * no_unkozai
+    temp2 = 0.5 * temp1 * j2 * pinvsq
+    temp3 = -0.46875 * j4 * pinvsq * pinvsq * no_unkozai
+    mdot = no_unkozai + 0.5 * temp1 * rteosq * con41 + 0.0625 * \
+                      temp2 * rteosq * (13.0 - 78.0 * cosio2 + 137.0 * cosio4)
+    argpdot = (-0.5 * temp1 * con42 + 0.0625 * temp2 *
+                       (7.0 - 114.0 * cosio2 + 395.0 * cosio4) +
+                       temp3 * (3.0 - 36.0 * cosio2 + 49.0 * cosio4))
+    xhdot1 = -temp1 * cosio
+    nodedot = xhdot1 + (0.5 * temp2 * (4.0 - 19.0 * cosio2) +
+                        2.0 * temp3 * (3.0 - 7.0 * cosio2)) * cosio
+    xpidot = argpdot + nodedot
+    omgcof = bstar * cc3 * jnp.cos(argpo)
+    xmcof_nonzero = -x2o3 * coef * bstar / eeta
+    xmcof = jnp.where(ecco > 1.0e-4, xmcof_nonzero, 0.0)
+    nodecf = 3.5 * omeosq * xhdot1 * cc1
+    t2cof = 1.5 * cc1
 
-        if rp < 220.0 / radiusearthkm + 1.0:
-            isimp = 1
-        sfour = ss
-        qzms24 = qzms2t
-        perige = (rp - 1.0) * radiusearthkm
+    xlcof_normal = -0.25 * j3oj2 * sinio * (3.0 + 5.0 * cosio) / (1.0 + cosio)
+    xlcof_singular = -0.25 * j3oj2 * sinio * (3.0 + 5.0 * cosio) / temp4
+    xlcof = jnp.where(jnp.abs(cosio + 1.0) > 1.5e-12, xlcof_normal, xlcof_singular)
 
-        if perige < 156.0:
-            sfour = perige - 78.0
-            if perige < 98.0:
-                sfour = 20.0
-            qzms24temp = (120.0 - sfour) / radiusearthkm
-            qzms24 = qzms24temp * qzms24temp * qzms24temp * qzms24temp
-            sfour = sfour / radiusearthkm + 1.0
+    aycof = -0.5 * j3oj2 * sinio
+    delmotemp = 1.0 + eta * jnp.cos(mo)
+    delmo = delmotemp * delmotemp * delmotemp
+    sinmao = jnp.sin(mo)
+    x7thm1 = 7.0 * cosio2 - 1.0
 
-        pinvsq = 1.0 / posq
-        tsi = 1.0 / (ao - sfour)
-        eta = ao * ecco * tsi
-        etasq = eta * eta
-        eeta = ecco * eta
-        psisq = fabs(1.0 - etasq)
-        coef = qzms24 * pow(tsi, 4.0)
-        coef1 = coef / pow(psisq, 3.5)
-        cc2 = coef1 * no_unkozai * (ao * (1.0 + 1.5 * etasq + eeta *
-                      (4.0 + etasq)) + 0.375 * j2 * tsi / psisq * con41 *
-                      (8.0 + 3.0 * etasq * (8.0 + etasq)))
-        cc1 = bstar * cc2
-        cc3 = 0.0
-        if ecco > 1.0e-4:
-            cc3 = -2.0 * coef * tsi * j3oj2 * no_unkozai * sinio / ecco
-        x1mth2 = 1.0 - cosio2
-        cc4 = 2.0 * no_unkozai * coef1 * ao * omeosq * \
-                          (eta * (2.0 + 0.5 * etasq) + ecco *
-                          (0.5 + 2.0 * etasq) - j2 * tsi / (ao * psisq) *
-                          (-3.0 * con41 * (1.0 - 2.0 * eeta + etasq *
-                          (1.5 - 0.5 * eeta)) + 0.75 * x1mth2 *
-                          (2.0 * etasq - eeta * (1.0 + etasq)) * cos(2.0 * argpo)))
-        cc5 = 2.0 * coef1 * ao * omeosq * (1.0 + 2.75 *
-                      (etasq + eeta) + eeta * etasq)
-        cosio4 = cosio2 * cosio2
-        temp1 = 1.5 * j2 * pinvsq * no_unkozai
-        temp2 = 0.5 * temp1 * j2 * pinvsq
-        temp3 = -0.46875 * j4 * pinvsq * pinvsq * no_unkozai
-        mdot = no_unkozai + 0.5 * temp1 * rteosq * con41 + 0.0625 * \
-                          temp2 * rteosq * (13.0 - 78.0 * cosio2 + 137.0 * cosio4)
-        argpdot = (-0.5 * temp1 * con42 + 0.0625 * temp2 *
-                           (7.0 - 114.0 * cosio2 + 395.0 * cosio4) +
-                           temp3 * (3.0 - 36.0 * cosio2 + 49.0 * cosio4))
-        xhdot1 = -temp1 * cosio
-        nodedot = xhdot1 + (0.5 * temp2 * (4.0 - 19.0 * cosio2) +
-                            2.0 * temp3 * (3.0 - 7.0 * cosio2)) * cosio
-        xpidot = argpdot + nodedot
-        omgcof = bstar * cc3 * cos(argpo)
-        xmcof = 0.0
-        if ecco > 1.0e-4:
-            xmcof = -x2o3 * coef * bstar / eeta
-        nodecf = 3.5 * omeosq * xhdot1 * cc1
-        t2cof = 1.5 * cc1
+    # Deep space initialization (method 1.0 if period >= 225 min)
+    is_deep = twopi / no_unkozai >= 225.0
+    method = jnp.where(is_deep, 1.0, 0.0)
+    isimp = jnp.where(is_deep, 1.0, isimp)
 
-        if fabs(cosio + 1.0) > 1.5e-12:
-            xlcof = -0.25 * j3oj2 * sinio * (3.0 + 5.0 * cosio) / (1.0 + cosio)
-        else:
-            xlcof = -0.25 * j3oj2 * sinio * (3.0 + 5.0 * cosio) / temp4
+    tc = 0.0
+    inclm = inclo
 
-        aycof = -0.5 * j3oj2 * sinio
-        delmotemp = 1.0 + eta * cos(mo)
-        delmo = delmotemp * delmotemp * delmotemp
-        sinmao = sin(mo)
-        x7thm1 = 7.0 * cosio2 - 1.0
+    (snodm, cnodm, sinim, cosim, sinomm,
+     cosomm, day, ds_e3, ds_ee2, ds_em,
+     ds_emsq, ds_gam, ds_peo, ds_pgho, ds_pho,
+     ds_pinco, ds_plo, ds_rtemsq, ds_se2, ds_se3,
+     ds_sgh2, ds_sgh3, ds_sgh4, ds_sh2, ds_sh3,
+     ds_si2, ds_si3, ds_sl2, ds_sl3, ds_sl4,
+     ds_s1, ds_s2, ds_s3, ds_s4, ds_s5,
+     ds_s6, ds_s7, ds_ss1, ds_ss2, ds_ss3,
+     ds_ss4, ds_ss5, ds_ss6, ds_ss7, ds_sz1,
+     ds_sz2, ds_sz3, ds_sz11, ds_sz12, ds_sz13,
+     ds_sz21, ds_sz22, ds_sz23, ds_sz31, ds_sz32,
+     ds_sz33, ds_xgh2, ds_xgh3, ds_xgh4, ds_xh2,
+     ds_xh3, ds_xi2, ds_xi3, ds_xl2, ds_xl3,
+     ds_xl4, ds_nm, ds_z1, ds_z2, ds_z3,
+     ds_z11, ds_z12, ds_z13, ds_z21, ds_z22,
+     ds_z23, ds_z31, ds_z32, ds_z33, ds_zmol,
+     ds_zmos
+     ) = dscom(
+        epoch, ecco, argpo, tc, inclo, nodeo, no_unkozai)
 
-        # Deep space initialization
-        if 2 * pi / no_unkozai >= 225.0:
-            method = 1.0  # deep-space
-            isimp = 1
-            tc = 0.0
-            inclm = inclo
+    (dp_ecco, dp_inclo, dp_nodeo, dp_argpo, dp_mo
+     ) = dpper_init(
+        ds_e3, ds_ee2, ds_peo, ds_pgho, ds_pho, ds_pinco, ds_plo,
+        ds_se2, ds_se3, ds_sgh2, ds_sgh3, ds_sgh4, ds_sh2, ds_sh3,
+        ds_si2, ds_si3, ds_sl2, ds_sl3, ds_sl4,
+        ds_xgh2, ds_xgh3, ds_xgh4, ds_xh2, ds_xh3,
+        ds_xi2, ds_xi3, ds_xl2, ds_xl3, ds_xl4,
+        ds_zmol, ds_zmos,
+        inclo, ecco, inclo, nodeo, argpo, mo)
 
-            (snodm, cnodm, sinim, cosim, sinomm,
-             cosomm, day, e3, ee2, em,
-             emsq, gam, peo, pgho, pho,
-             pinco, plo, rtemsq, se2, se3,
-             sgh2, sgh3, sgh4, sh2, sh3,
-             si2, si3, sl2, sl3, sl4,
-             s1, s2, s3, s4, s5,
-             s6, s7, ss1, ss2, ss3,
-             ss4, ss5, ss6, ss7, sz1,
-             sz2, sz3, sz11, sz12, sz13,
-             sz21, sz22, sz23, sz31, sz32,
-             sz33, xgh2, xgh3, xgh4, xh2,
-             xh3, xi2, xi3, xl2, xl3,
-             xl4, nm, z1, z2, z3,
-             z11, z12, z13, z21, z22,
-             z23, z31, z32, z33, zmol,
-             zmos
-             ) = dscom(
-                epoch, ecco, argpo, tc, inclo, nodeo, no_unkozai)
+    # For deep space, use perturbed elements
+    ecco = jnp.where(is_deep, dp_ecco, ecco)
+    inclo = jnp.where(is_deep, dp_inclo, inclo)
+    nodeo = jnp.where(is_deep, dp_nodeo, nodeo)
+    argpo = jnp.where(is_deep, dp_argpo, argpo)
+    mo = jnp.where(is_deep, dp_mo, mo)
 
-            (ecco, inclo, nodeo, argpo, mo
-             ) = dpper_init(
-                e3, ee2, peo, pgho, pho, pinco, plo,
-                se2, se3, sgh2, sgh3, sgh4, sh2, sh3,
-                si2, si3, sl2, sl3, sl4,
-                xgh2, xgh3, xgh4, xh2, xh3, xi2, xi3, xl2, xl3, xl4,
-                zmol, zmos,
-                inclo, ecco, inclo, nodeo, argpo, mo)
+    argpm = 0.0
+    nodem = 0.0
+    mm = 0.0
 
-            argpm = 0.0
-            nodem = 0.0
-            mm = 0.0
+    (di_em, di_argpm, di_inclm, di_mm, di_nm, di_nodem,
+     di_irez, di_atime,
+     di_d2201, di_d2211, di_d3210, di_d3222,
+     di_d4410, di_d4422, di_d5220, di_d5232,
+     di_d5421, di_d5433, di_dedt, di_didt,
+     di_dmdt, di_dndt, di_dnodt, di_domdt,
+     di_del1, di_del2, di_del3, di_xfact,
+     di_xlamo, di_xli, di_xni
+     ) = dsinit(
+        xke, cosim, ds_emsq, argpo, ds_s1, ds_s2, ds_s3, ds_s4, ds_s5, sinim,
+        ds_ss1, ds_ss2, ds_ss3, ds_ss4, ds_ss5,
+        ds_sz1, ds_sz3, ds_sz11, ds_sz13, ds_sz21, ds_sz23, ds_sz31, ds_sz33,
+        0.0, tc, gsto, mo, mdot, no_unkozai, nodeo,
+        nodedot, xpidot,
+        ds_z1, ds_z3, ds_z11, ds_z13, ds_z21, ds_z23, ds_z31, ds_z33,
+        ecco, eccsq, ds_em, argpm, inclm, mm, ds_nm, nodem)
 
-            (em, argpm, inclm, mm, nm, nodem,
-             irez, atime,
-             d2201, d2211, d3210, d3222,
-             d4410, d4422, d5220, d5232,
-             d5421, d5433, dedt, didt,
-             dmdt, dndt, dnodt, domdt,
-             del1, del2, del3, xfact,
-             xlamo, xli, xni
-             ) = dsinit(
-                xke, cosim, emsq, argpo, s1, s2, s3, s4, s5, sinim,
-                ss1, ss2, ss3, ss4, ss5,
-                sz1, sz3, sz11, sz13, sz21, sz23, sz31, sz33,
-                0.0, tc, gsto, mo, mdot, no_unkozai, nodeo,
-                nodedot, xpidot,
-                z1, z3, z11, z13, z21, z23, z31, z33,
-                ecco, eccsq, em, argpm, inclm, mm, nm, nodem)
+    # Select deep space values or near-earth defaults (0.0)
+    def ds_sel(deep_val, default=0.0):
+        return jnp.where(is_deep, deep_val, default)
 
-            irez = float(irez)
+    d2201 = ds_sel(di_d2201); d2211 = ds_sel(di_d2211)
+    d3210 = ds_sel(di_d3210); d3222 = ds_sel(di_d3222)
+    d4410 = ds_sel(di_d4410); d4422 = ds_sel(di_d4422)
+    d5220 = ds_sel(di_d5220); d5232 = ds_sel(di_d5232)
+    d5421 = ds_sel(di_d5421); d5433 = ds_sel(di_d5433)
+    dedt = ds_sel(di_dedt); didt = ds_sel(di_didt)
+    dmdt = ds_sel(di_dmdt); dnodt = ds_sel(di_dnodt); domdt = ds_sel(di_domdt)
+    del1 = ds_sel(di_del1); del2 = ds_sel(di_del2); del3 = ds_sel(di_del3)
+    xfact = ds_sel(di_xfact); xlamo = ds_sel(di_xlamo)
+    xli = ds_sel(di_xli); xni = ds_sel(di_xni)
+    irez = ds_sel(di_irez); atime = ds_sel(di_atime)
+    e3 = ds_sel(ds_e3); ee2 = ds_sel(ds_ee2)
+    peo = ds_sel(ds_peo); pgho = ds_sel(ds_pgho); pho = ds_sel(ds_pho)
+    pinco = ds_sel(ds_pinco); plo = ds_sel(ds_plo)
+    se2 = ds_sel(ds_se2); se3 = ds_sel(ds_se3)
+    sgh2 = ds_sel(ds_sgh2); sgh3 = ds_sel(ds_sgh3); sgh4 = ds_sel(ds_sgh4)
+    sh2 = ds_sel(ds_sh2); sh3 = ds_sel(ds_sh3)
+    si2 = ds_sel(ds_si2); si3 = ds_sel(ds_si3)
+    sl2 = ds_sel(ds_sl2); sl3 = ds_sel(ds_sl3); sl4 = ds_sel(ds_sl4)
+    xgh2 = ds_sel(ds_xgh2); xgh3 = ds_sel(ds_xgh3); xgh4 = ds_sel(ds_xgh4)
+    xh2 = ds_sel(ds_xh2); xh3 = ds_sel(ds_xh3)
+    xi2 = ds_sel(ds_xi2); xi3 = ds_sel(ds_xi3)
+    xl2 = ds_sel(ds_xl2); xl3 = ds_sel(ds_xl3); xl4 = ds_sel(ds_xl4)
+    zmol = ds_sel(ds_zmol); zmos = ds_sel(ds_zmos)
 
-        # Near-earth higher-order drag terms
-        if isimp != 1:
-            cc1sq = cc1 * cc1
-            d2 = 4.0 * ao * tsi * cc1sq
-            temp = d2 * tsi * cc1 / 3.0
-            d3 = (17.0 * ao + sfour) * temp
-            d4 = 0.5 * temp * ao * tsi * (221.0 * ao + 31.0 * sfour) * cc1
-            t3cof = d2 + 2.0 * cc1sq
-            t4cof = 0.25 * (3.0 * d3 + cc1 * (12.0 * d2 + 10.0 * cc1sq))
-            t5cof = 0.2 * (3.0 * d4 + 12.0 * cc1 * d3 +
-                          6.0 * d2 * d2 + 15.0 * cc1sq * (2.0 * d2 + cc1sq))
+    # Near-earth higher-order drag terms (isimp == 0)
+    cc1sq = cc1 * cc1
+    d2_ne = 4.0 * ao * tsi * cc1sq
+    temp_ne = d2_ne * tsi * cc1 / 3.0
+    d3_ne = (17.0 * ao + sfour) * temp_ne
+    d4_ne = 0.5 * temp_ne * ao * tsi * (221.0 * ao + 31.0 * sfour) * cc1
+    t3cof_ne = d2_ne + 2.0 * cc1sq
+    t4cof_ne = 0.25 * (3.0 * d3_ne + cc1 * (12.0 * d2_ne + 10.0 * cc1sq))
+    t5cof_ne = 0.2 * (3.0 * d4_ne + 12.0 * cc1 * d3_ne +
+                      6.0 * d2_ne * d2_ne + 15.0 * cc1sq * (2.0 * d2_ne + cc1sq))
 
-    # Build the SatRec
+    is_not_simp = isimp == 0.0
+    d2 = jnp.where(is_not_simp, d2_ne, 0.0)
+    d3 = jnp.where(is_not_simp, d3_ne, 0.0)
+    d4 = jnp.where(is_not_simp, d4_ne, 0.0)
+    t3cof = jnp.where(is_not_simp, t3cof_ne, 0.0)
+    t4cof = jnp.where(is_not_simp, t4cof_ne, 0.0)
+    t5cof = jnp.where(is_not_simp, t5cof_ne, 0.0)
+
+    # Build the SatRec - use jnp.asarray to preserve JAX tracers
     def f(x):
-        return jnp.array(float(x))
+        return jnp.asarray(x, dtype=jnp.float64)
 
     satrec = SatRec(
         bstar=f(bstar), ecco=f(ecco), argpo=f(argpo), inclo=f(inclo),
@@ -261,61 +275,57 @@ def sgp4init(whichconst, epoch, xbstar, xndot, xnddot, xecco, xargpo,
         xh2=f(xh2), xh3=f(xh3), xi2=f(xi2), xi3=f(xi3),
         xl2=f(xl2), xl3=f(xl3), xl4=f(xl4), xlamo=f(xlamo),
         xli=f(xli), xni=f(xni), zmol=f(zmol), zmos=f(zmos), atime=f(atime),
-        method=f(method), isimp=f(float(isimp)), irez=f(float(irez)),
+        method=f(method), isimp=f(isimp), irez=f(irez),
     )
 
     # Run propagation at t=0 to finalize (mirrors reference sgp4init calling sgp4(satrec, 0.0))
-    # For deep-space, this updates aycof, xlcof, con41, x1mth2, x7thm1
     from sgp4jax._propagation import sgp4 as _sgp4
     r, v, error = _sgp4(satrec, jnp.array(0.0))
 
     # For deep space satellites, the t=0 propagation recomputes some fields
     # from perturbed inclination. We need to capture those updates.
-    if method == 1.0:  # deep space
-        # Recompute from the perturbed inclination at t=0
-        # This mirrors lines 1846-1855 of propagation.py
-        from sgp4jax._dpper import dpper
-        ep = ecco
-        xincp = inclo
-        nodep_ = nodeo
-        argpp_ = argpo
-        mp_ = mo
+    # Recompute from the perturbed inclination at t=0
+    from sgp4jax._dpper import dpper
+    ep_ds = f(ecco)
+    xincp_ds = f(inclo)
+    nodep_ds = f(nodeo)
+    argpp_ds = f(argpo)
+    mp_ds = f(mo)
 
-        ep, xincp, nodep_, argpp_, mp_ = dpper(
-            e3, ee2, peo, pgho, pho, pinco, plo,
-            se2, se3, sgh2, sgh3, sgh4, sh2, sh3,
-            si2, si3, sl2, sl3, sl4, jnp.array(0.0),
-            xgh2, xgh3, xgh4, xh2, xh3, xi2, xi3, xl2, xl3, xl4,
-            zmol, zmos,
-            inclo, jnp.array(float(ecco)),
-            jnp.array(float(inclo)), jnp.array(float(nodeo)),
-            jnp.array(float(argpo)), jnp.array(float(mo)))
+    ep_ds, xincp_ds, nodep_ds, argpp_ds, mp_ds = dpper(
+        f(e3), f(ee2), f(peo), f(pgho), f(pho), f(pinco), f(plo),
+        f(se2), f(se3), f(sgh2), f(sgh3), f(sgh4), f(sh2), f(sh3),
+        f(si2), f(si3), f(sl2), f(sl3), f(sl4), jnp.array(0.0),
+        f(xgh2), f(xgh3), f(xgh4), f(xh2), f(xh3),
+        f(xi2), f(xi3), f(xl2), f(xl3), f(xl4),
+        f(zmol), f(zmos),
+        f(inclo), f(ecco),
+        f(inclo), f(nodeo),
+        f(argpo), f(mo))
 
-        if float(xincp) < 0.0:
-            xincp = -xincp
-            nodep_ = nodep_ + pi
-            argpp_ = argpp_ - pi
+    # Handle negative inclination
+    xincp_neg = xincp_ds < 0.0
+    xincp_ds = jnp.where(xincp_neg, -xincp_ds, xincp_ds)
+    nodep_ds = jnp.where(xincp_neg, nodep_ds + pi, nodep_ds)
+    argpp_ds = jnp.where(xincp_neg, argpp_ds - pi, argpp_ds)
 
-        sinip = jnp.sin(xincp)
-        cosip = jnp.cos(xincp)
-        new_aycof = -0.5 * j3oj2 * sinip
-        cosip_val = float(cosip)
-        sinip_val = float(sinip)
-        if fabs(cosip_val + 1.0) > 1.5e-12:
-            new_xlcof = -0.25 * j3oj2 * sinip_val * (3.0 + 5.0 * cosip_val) / (1.0 + cosip_val)
-        else:
-            new_xlcof = -0.25 * j3oj2 * sinip_val * (3.0 + 5.0 * cosip_val) / temp4
-        cosisq = cosip * cosip
-        new_con41 = 3.0 * cosisq - 1.0
-        new_x1mth2 = 1.0 - cosisq
-        new_x7thm1 = 7.0 * cosisq - 1.0
+    sinip = jnp.sin(xincp_ds)
+    cosip = jnp.cos(xincp_ds)
+    new_aycof = -0.5 * j3oj2 * sinip
+    new_xlcof_normal = -0.25 * j3oj2 * sinip * (3.0 + 5.0 * cosip) / (1.0 + cosip)
+    new_xlcof_singular = -0.25 * j3oj2 * sinip * (3.0 + 5.0 * cosip) / temp4
+    new_xlcof = jnp.where(jnp.abs(cosip + 1.0) > 1.5e-12, new_xlcof_normal, new_xlcof_singular)
+    cosisq = cosip * cosip
+    new_con41 = 3.0 * cosisq - 1.0
+    new_x1mth2 = 1.0 - cosisq
+    new_x7thm1 = 7.0 * cosisq - 1.0
 
-        satrec = satrec._replace(
-            aycof=jnp.array(float(new_aycof)),
-            xlcof=jnp.array(float(new_xlcof)),
-            con41=jnp.array(float(new_con41)),
-            x1mth2=jnp.array(float(new_x1mth2)),
-            x7thm1=jnp.array(float(new_x7thm1)),
-        )
+    satrec = satrec._replace(
+        aycof=jnp.where(is_deep, f(new_aycof), satrec.aycof),
+        xlcof=jnp.where(is_deep, f(new_xlcof), satrec.xlcof),
+        con41=jnp.where(is_deep, f(new_con41), satrec.con41),
+        x1mth2=jnp.where(is_deep, f(new_x1mth2), satrec.x1mth2),
+        x7thm1=jnp.where(is_deep, f(new_x7thm1), satrec.x7thm1),
+    )
 
     return satrec

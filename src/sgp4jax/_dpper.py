@@ -1,7 +1,7 @@
 """_dpper - deep space long period periodic contributions."""
 
 import jax.numpy as jnp
-from math import atan2, cos, fabs, pi, sin
+from math import pi
 
 
 twopi = 2.0 * pi
@@ -21,10 +21,10 @@ def dpper_init(e3, ee2, peo, pgho, pho, pinco, plo,
 
     # t = 0 at init
     zm = zmos  # init='y' so zm = zmos
-    zf = zm + 2.0 * zes * sin(zm)
-    sinzf = sin(zf)
+    zf = zm + 2.0 * zes * jnp.sin(zm)
+    sinzf = jnp.sin(zf)
     f2 = 0.5 * sinzf * sinzf - 0.25
-    f3 = -0.5 * sinzf * cos(zf)
+    f3 = -0.5 * sinzf * jnp.cos(zf)
     ses = se2 * f2 + se3 * f3
     sis = si2 * f2 + si3 * f3
     sls = sl2 * f2 + sl3 * f3 + sl4 * sinzf
@@ -32,10 +32,10 @@ def dpper_init(e3, ee2, peo, pgho, pho, pinco, plo,
     shs = sh2 * f2 + sh3 * f3
 
     zm = zmol  # init='y' so zm = zmol
-    zf = zm + 2.0 * zel * sin(zm)
-    sinzf = sin(zf)
+    zf = zm + 2.0 * zel * jnp.sin(zm)
+    sinzf = jnp.sin(zf)
     f2 = 0.5 * sinzf * sinzf - 0.25
-    f3 = -0.5 * sinzf * cos(zf)
+    f3 = -0.5 * sinzf * jnp.cos(zf)
     sel = ee2 * f2 + e3 * f3
     sil = xi2 * f2 + xi3 * f3
     sll = xl2 * f2 + xl3 * f3 + xl4 * sinzf

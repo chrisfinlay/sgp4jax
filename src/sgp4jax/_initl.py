@@ -1,6 +1,7 @@
 """_initl - compute auxiliary orbital quantities and Greenwich sidereal time."""
 
-from math import atan2, cos, pi, pow, sin, sqrt
+import jax.numpy as jnp
+from math import pi
 
 twopi = 2.0 * pi
 
@@ -13,8 +14,7 @@ def gstime(jdut1):
     deg2rad = pi / 180.0
     temp = (temp * deg2rad / 240.0) % twopi
 
-    if temp < 0.0:
-        temp += twopi
+    temp = jnp.where(temp < 0.0, temp + twopi, temp)
 
     return temp
 
@@ -31,12 +31,12 @@ def initl(xke, j2, ecco, epoch, inclo, no):
     # Calculate auxiliary epoch quantities
     eccsq = ecco * ecco
     omeosq = 1.0 - eccsq
-    rteosq = sqrt(omeosq)
-    cosio = cos(inclo)
+    rteosq = jnp.sqrt(omeosq)
+    cosio = jnp.cos(inclo)
     cosio2 = cosio * cosio
 
     # Un-Kozai the mean motion
-    ak = pow(xke / no, x2o3)
+    ak = (xke / no) ** x2o3
     d1 = 0.75 * j2 * (3.0 * cosio2 - 1.0) / (rteosq * omeosq)
     del_ = d1 / (ak * ak)
     adel = ak * (1.0 - del_ * del_ - del_ *
@@ -44,8 +44,8 @@ def initl(xke, j2, ecco, epoch, inclo, no):
     del_ = d1 / (adel * adel)
     no = no / (1.0 + del_)
 
-    ao = pow(xke / no, x2o3)
-    sinio = sin(inclo)
+    ao = (xke / no) ** x2o3
+    sinio = jnp.sin(inclo)
     po = ao * omeosq
     con42 = 1.0 - 5.0 * cosio2
     con41 = -con42 - cosio2 - cosio2

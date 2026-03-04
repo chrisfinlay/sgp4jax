@@ -20,4 +20,5 @@ written in JAX, you get:
 
    installation
    getting_started
+   examples
    api

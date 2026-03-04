@@ -48,7 +48,6 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
 
     delt = jnp.where(t > 0.0, stepp, stepn)
 
-    # Integration loop using lax.while_loop
     def _compute_xndt_xnddt(xli, xni, atime, irez, d2201, d2211, d3210, d3222,
                               d4410, d4422, d5220, d5232, d5421, d5433,
                               del1, del2, del3, xfact, argpo, argpdot):
@@ -97,13 +96,14 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
 
         return xndt, xldot, xnddt
 
-    # Loop carry: (atime, xni, xli, continuing)
-    def loop_cond(carry):
-        atime_c, xni_c, xli_c, continuing = carry
-        return (irez != 0) & (continuing > 0.5)
+    # Use lax.scan with fixed iterations instead of while_loop
+    # (while_loop doesn't support reverse-mode AD).
+    # Max iterations: ceil(max_propagation_time / 720) + 1.
+    # For propagation up to ~30 days (43200 min), 64 is more than enough.
+    _MAX_ITERS = 64
 
-    def loop_body(carry):
-        atime_c, xni_c, xli_c, continuing = carry
+    def scan_body(carry, _):
+        atime_c, xni_c, xli_c, active = carry
 
         xndt, xldot, xnddt = _compute_xndt_xnddt(
             xli_c, xni_c, atime_c, irez, d2201, d2211, d3210, d3222,
@@ -111,20 +111,23 @@ def dspace(irez, d2201, d2211, d3210, d3222, d4410, d4422,
             del1, del2, del3, xfact, argpo, argpdot)
 
         should_step = jnp.abs(t - atime_c) >= stepp
-        # Step
+        do_step = active & should_step
+
         xli_new = xli_c + xldot * delt + xndt * step2
         xni_new = xni_c + xndt * delt + xnddt * step2
         atime_new = atime_c + delt
 
-        xli_c = jnp.where(should_step, xli_new, xli_c)
-        xni_c = jnp.where(should_step, xni_new, xni_c)
-        atime_c = jnp.where(should_step, atime_new, atime_c)
-        continuing = jnp.where(should_step, 1.0, 0.0)
+        xli_c = jnp.where(do_step, xli_new, xli_c)
+        xni_c = jnp.where(do_step, xni_new, xni_c)
+        atime_c = jnp.where(do_step, atime_new, atime_c)
+        # Once we stop stepping, stay inactive
+        active = active & should_step
 
-        return (atime_c, xni_c, xli_c, continuing)
+        return (atime_c, xni_c, xli_c, active), None
 
-    init_carry = (atime, xni, xli, jnp.where(irez != 0, 1.0, 0.0))
-    atime, xni, xli, _ = jax.lax.while_loop(loop_cond, loop_body, init_carry)
+    init_active = (irez != 0)
+    init_carry = (atime, xni, xli, init_active)
+    (atime, xni, xli, _), _ = jax.lax.scan(scan_body, init_carry, None, length=_MAX_ITERS)
 
     # Final interpolation
     ft = jnp.where(irez != 0, t - atime, 0.0)
