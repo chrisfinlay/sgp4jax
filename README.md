@@ -104,12 +104,15 @@ sat_wgs72 = sgp4jax.tle_to_satrec(line1, line2, gravity=sgp4jax.WGS72)
 
 | Function / Object | Description |
 |---|---|
-| `tle_to_satrec(line1, line2, gravity=WGS84)` | Parse a TLE and initialize a satellite record |
+| `tle_to_satrec(line1, line2, gravity=WGS72)` | Parse a TLE and initialize a satellite record |
+| `tles_to_satrec(tles, gravity=WGS72)` | Parse multiple TLEs and return a batched SatRec |
 | `propagate(satrec, tsince)` | Propagate to `tsince` minutes from epoch |
 | `propagate_jd(satrec, jd, fr)` | Propagate to a split Julian Date (TEME) |
 | `propagate_gcrf(satrec, tsince)` | Propagate to `tsince` minutes, return GCRF |
 | `propagate_jd_gcrf(satrec, jd, fr)` | Propagate to split Julian Date, return GCRF |
 | `teme_to_gcrf(r_teme, v_teme, jd, fr)` | Transform TEME vectors to GCRF |
+| `gcrf_positions(satrec, times_jd)` | Propagate one satellite to many Julian dates (GCRF) |
+| `gcrf_positions_multi(satrec, times_jd)` | Propagate multiple satellites to many Julian dates (GCRF) |
 | `SatRec` | NamedTuple holding all satellite state (JAX arrays) |
 | `make_satrec(**kwargs)` | Create a SatRec with defaults of 0.0 for unspecified fields |
 | `WGS84`, `WGS72`, `WGS72OLD` | Gravity model constants |

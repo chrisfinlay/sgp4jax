@@ -119,7 +119,7 @@ def tle_to_satrec(line1, line2, gravity=None):
     Args:
         line1: First TLE line
         line2: Second TLE line
-        gravity: Gravity constants (default WGS84)
+        gravity: Gravity constants (default WGS72)
 
     Returns:
         SatRec NamedTuple

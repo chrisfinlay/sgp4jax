@@ -13,7 +13,7 @@ From source
 
 .. code-block:: bash
 
-   git clone https://github.com/<your-org>/sgp4jax.git
+   git clone https://github.com/chrisfinlay/sgp4jax.git
    cd sgp4jax
    pip install -e ".[test]"
 
