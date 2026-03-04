@@ -1,5 +1,9 @@
 # sgp4jax
 
+[![Tests](https://github.com/chrisfinlay/sgp4jax/actions/workflows/test.yml/badge.svg)](https://github.com/chrisfinlay/sgp4jax/actions/workflows/test.yml)
+[![Docs](https://github.com/chrisfinlay/sgp4jax/actions/workflows/docs.yml/badge.svg)](https://github.com/chrisfinlay/sgp4jax/actions/workflows/docs.yml)
+[![Coverage](https://codecov.io/gh/chrisfinlay/sgp4jax/branch/main/graph/badge.svg)](https://codecov.io/gh/chrisfinlay/sgp4jax)
+
 **JAX-compatible SGP4/SDP4 satellite propagation.**
 
 sgp4jax is a pure-JAX reimplementation of the SGP4/SDP4 orbital propagator — the standard algorithm used worldwide to predict satellite positions from NORAD Two-Line Element (TLE) sets. Because the entire propagation pipeline is written in JAX, you get JIT compilation, automatic vectorization (`vmap`), and automatic differentiation (`grad`) for free.
