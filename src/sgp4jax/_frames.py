@@ -621,6 +621,42 @@ def _ut1_to_utc(jd_ut1: jax.typing.ArrayLike, frac_ut1: jax.typing.ArrayLike) ->
     return jd_ut1, frac_utc  # type: ignore[return-value]
 
 
+def _earth_orientation(
+    jd: jax.typing.ArrayLike,
+    fr: jax.typing.ArrayLike,
+) -> tuple[jax.Array, jax.Array]:
+    """Return (M, gast_rad) for a UT1 Julian date.
+
+    M = N @ P @ B is the combined nutation-precession-frame-bias matrix
+    mapping GCRF to the true equatorial frame of date.  ``gast_rad`` is the
+    Greenwich Apparent Sidereal Time in radians.  Together they define every
+    Earth-orientation rotation needed by TEME ↔ GCRF and ITRF ↔ GCRF.
+    """
+    jd_ut1 = jd
+    frac_ut1 = fr
+
+    dt = _delta_t(jd_ut1, frac_ut1)
+    frac_tt = frac_ut1 + dt / _DAY_S
+    dt_tdb = _tdb_minus_tt(jd_ut1, frac_tt) / _DAY_S
+    frac_tdb = frac_tt + dt_tdb
+
+    T_tdb = (jd_ut1 - _T0 + frac_tdb) / 36525.0
+    T_tt = (jd_ut1 - _T0 + frac_tt) / 36525.0
+
+    dpsi, deps = _iau2000a(T_tt)
+    mean_obl = _mean_obliquity(T_tdb) * _ASEC2RAD
+    true_obl = mean_obl + deps
+
+    P = _precession_matrix(T_tdb)
+    N = _nutation_matrix(mean_obl, true_obl, dpsi)
+    M = N @ P @ _B
+
+    gast = _gast_hours(T_tt, dpsi, mean_obl, jd_ut1, frac_ut1, jd_ut1, frac_tdb)
+    gast_rad = gast / 24.0 * _tau
+
+    return M, gast_rad  # type: ignore[return-value]
+
+
 @jax.jit
 def teme_to_gcrf(
     r_teme: jax.typing.ArrayLike,
@@ -647,48 +683,69 @@ def teme_to_gcrf(
         r_gcrf: Position in GCRF frame (3,) in km.
         v_gcrf: Velocity in GCRF frame (3,) in km/s.
     """
-    # UT1 time (treat input as UT1 ≈ UTC)
-    jd_ut1 = jd
-    frac_ut1 = fr
-
-    # Derive TT = UT1 + delta_t
-    dt = _delta_t(jd_ut1, frac_ut1)
-    frac_tt = frac_ut1 + dt / _DAY_S
-
-    # TDB ≈ TT + small periodic correction
-    dt_tdb = _tdb_minus_tt(jd_ut1, frac_tt) / _DAY_S
-    frac_tdb = frac_tt + dt_tdb
-
-    # TDB centuries from J2000 (for precession and mean obliquity)
-    T_tdb = (jd_ut1 - _T0 + frac_tdb) / 36525.0
-
-    # TT centuries from J2000 (for nutation)
-    T_tt = (jd_ut1 - _T0 + frac_tt) / 36525.0
-
-    # Nutation angles (use TT)
-    dpsi, deps = _iau2000a(T_tt)
-
-    # Mean and true obliquity (use TDB centuries)
-    mean_obl = _mean_obliquity(T_tdb) * _ASEC2RAD
-    true_obl = mean_obl + deps
-
-    # Build M = N @ P @ B (precession uses TDB)
-    P = _precession_matrix(T_tdb)
-    N = _nutation_matrix(mean_obl, true_obl, dpsi)
-    M = N @ P @ _B
-
-    # GAST and GMST1982 (use UT1 for Earth rotation, TDB for polynomial)
-    gast = _gast_hours(T_tt, dpsi, mean_obl, jd_ut1, frac_ut1, jd_ut1, frac_tdb)
-    theta, _ = _theta_gmst1982(jd_ut1, frac_ut1)
+    M, gast_rad = _earth_orientation(jd, fr)
+    theta, _ = _theta_gmst1982(jd, fr)
 
     # TEME rotation: angle = theta_GMST1982 - GAST (in radians)
-    angle = theta - gast / 24.0 * _tau
-
-    # R_teme = rot_z(angle) @ M  ;  R_teme_to_gcrf = R_teme^T
-    R_teme = _rot_z(angle) @ M
-    R = R_teme.T
+    angle = theta - gast_rad
+    R = (_rot_z(angle) @ M).T
 
     r_gcrf = R @ r_teme
     v_gcrf = R @ v_teme
 
     return r_gcrf, v_gcrf
+
+
+@jax.jit
+def itrf_to_gcrf(
+    r_itrf: jax.typing.ArrayLike,
+    jd: jax.typing.ArrayLike,
+    fr: jax.typing.ArrayLike,
+) -> jax.Array:
+    """Transform position from ITRF (Earth-fixed) to GCRF (≈ICRS).
+
+    The rotation is ``R = M^T @ rot_z(GAST)`` where ``M = N @ P @ B`` is the
+    combined nutation-precession-bias matrix and GAST is the Greenwich
+    Apparent Sidereal Time.  Matches Skyfield's ``ITRS.rotation_at(t).T``
+    to sub-millimetre precision.
+
+    The input Julian date ``jd + fr`` is treated as UT1 (≈UTC).
+
+    Args:
+        r_itrf: Position in ITRF frame (3,) in km.
+        jd: Julian date (UT1), integer/whole part (scalar).
+        fr: Julian date (UT1), fractional part (scalar).
+
+    Returns:
+        r_gcrf: Position in GCRF frame (3,) in km.
+    """
+    M, gast_rad = _earth_orientation(jd, fr)
+    R = M.T @ _rot_z(gast_rad)
+    return R @ r_itrf  # type: ignore[return-value]
+
+
+@jax.jit
+def gcrf_to_itrf(
+    r_gcrf: jax.typing.ArrayLike,
+    jd: jax.typing.ArrayLike,
+    fr: jax.typing.ArrayLike,
+) -> jax.Array:
+    """Transform position from GCRF (≈ICRS) to ITRF (Earth-fixed).
+
+    Inverse of :func:`itrf_to_gcrf`.  The rotation is
+    ``R = rot_z(-GAST) @ M`` where ``M = N @ P @ B``.  Matches Skyfield's
+    ``ITRS.rotation_at(t)`` to sub-millimetre precision.
+
+    The input Julian date ``jd + fr`` is treated as UT1 (≈UTC).
+
+    Args:
+        r_gcrf: Position in GCRF frame (3,) in km.
+        jd: Julian date (UT1), integer/whole part (scalar).
+        fr: Julian date (UT1), fractional part (scalar).
+
+    Returns:
+        r_itrf: Position in ITRF frame (3,) in km.
+    """
+    M, gast_rad = _earth_orientation(jd, fr)
+    R = _rot_z(-gast_rad) @ M
+    return R @ r_gcrf  # type: ignore[return-value]

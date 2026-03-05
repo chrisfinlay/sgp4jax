@@ -1,7 +1,7 @@
-"""Tests for TEME → GCRF frame transformation.
+"""Tests for frame transformations: TEME → GCRF and ITRF ↔ GCRF.
 
-Compares sgp4jax GCRF output against Skyfield's EarthSatellite.at()
-reference values. Requires skyfield in test dependencies.
+Compares sgp4jax output against Skyfield reference values.
+Requires skyfield in test dependencies.
 """
 
 import jax
@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 import sgp4jax
-from sgp4jax._frames import teme_to_gcrf
+from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 
 # ISS TLE
 LINE1_ISS = "1 25544U 98067A   20045.18587073  .00000950  00000-0  25302-4 0  9990"
@@ -251,3 +251,123 @@ class TestJAXCompatibility:
         g = grad_fn(jnp.array(100.0))
         assert jnp.isfinite(g)
         assert float(g) != 0.0
+
+
+# ---------------------------------------------------------------------------
+# Known ITRF positions (lat_deg, lon_deg, elev_m) for parameterised tests
+# ---------------------------------------------------------------------------
+
+_LOCATIONS = [
+    ("equator_greenwich",  0.0,    0.0,    0.0),
+    ("london",            51.5,   -0.1,    0.0),
+    ("sydney",           -33.9,  151.2,    0.0),
+    ("north_pole",        89.9,    0.0,    0.0),
+    ("high_altitude",     28.6,   77.2,  500_000.0),  # 500 km above Delhi
+]
+
+
+def _skyfield_itrf_reference(lat_deg, lon_deg, elev_m, jd_ut1):
+    """Return (r_itrf_km, r_gcrf_km) for a ground location at jd_ut1 (full JD)."""
+    from skyfield.api import load, wgs84
+    ts = load.timescale()
+    obs = wgs84.latlon(lat_deg, lon_deg, elevation_m=elev_m)
+    r_itrf_km = np.array(obs.itrs_xyz.km)
+    t = ts.ut1_jd(jd_ut1)
+    r_gcrf_km = np.array(obs.at(t).position.km)
+    jd = float(t.whole)
+    fr = float(t.ut1_fraction)
+    return r_itrf_km, r_gcrf_km, jd, fr
+
+
+class TestITRFGCRF:
+    """Compare itrf_to_gcrf / gcrf_to_itrf against Skyfield."""
+
+    # A spread of Julian dates spanning several years
+    _JD_LIST = [
+        2451545.0,    # J2000.0  (2000-01-01 12:00 UT1)
+        2453736.5,    # 2006-01-01
+        2456658.5,    # 2014-01-01
+        2459945.5,    # 2023-01-01
+        2460676.5,    # 2025-01-01
+    ]
+
+    @pytest.mark.parametrize("name,lat,lon,elev", _LOCATIONS)
+    @pytest.mark.parametrize("jd_ut1", _JD_LIST)
+    def test_itrf_to_gcrf_vs_skyfield(self, name, lat, lon, elev, jd_ut1):
+        """itrf_to_gcrf matches Skyfield observer GCRF to sub-mm precision."""
+        r_itrf_km, r_gcrf_ref, jd, fr = _skyfield_itrf_reference(lat, lon, elev, jd_ut1)
+
+        r_gcrf = itrf_to_gcrf(jnp.array(r_itrf_km), jnp.float64(jd), jnp.float64(fr))
+
+        np.testing.assert_allclose(
+            np.array(r_gcrf), r_gcrf_ref, atol=1e-6,
+            err_msg=f"itrf_to_gcrf mismatch: {name} at JD {jd_ut1}")
+
+    @pytest.mark.parametrize("name,lat,lon,elev", _LOCATIONS)
+    @pytest.mark.parametrize("jd_ut1", _JD_LIST)
+    def test_gcrf_to_itrf_round_trip(self, name, lat, lon, elev, jd_ut1):
+        """gcrf_to_itrf(itrf_to_gcrf(r)) == r to floating-point precision."""
+        r_itrf_km, _, jd, fr = _skyfield_itrf_reference(lat, lon, elev, jd_ut1)
+        jd_ = jnp.float64(jd)
+        fr_ = jnp.float64(fr)
+
+        r_gcrf = itrf_to_gcrf(jnp.array(r_itrf_km), jd_, fr_)
+        r_itrf_back = gcrf_to_itrf(r_gcrf, jd_, fr_)
+
+        np.testing.assert_allclose(
+            np.array(r_itrf_back), r_itrf_km, atol=1e-9,
+            err_msg=f"round-trip mismatch: {name} at JD {jd_ut1}")
+
+    @pytest.mark.parametrize("name,lat,lon,elev", _LOCATIONS)
+    @pytest.mark.parametrize("jd_ut1", _JD_LIST)
+    def test_gcrf_to_itrf_vs_skyfield(self, name, lat, lon, elev, jd_ut1):
+        """gcrf_to_itrf recovers the original ITRF position from Skyfield GCRF."""
+        r_itrf_ref, r_gcrf_km, jd, fr = _skyfield_itrf_reference(lat, lon, elev, jd_ut1)
+
+        r_itrf = gcrf_to_itrf(jnp.array(r_gcrf_km), jnp.float64(jd), jnp.float64(fr))
+
+        np.testing.assert_allclose(
+            np.array(r_itrf), r_itrf_ref, atol=1e-6,
+            err_msg=f"gcrf_to_itrf mismatch: {name} at JD {jd_ut1}")
+
+    def test_magnitude_preserved(self):
+        """ITRF ↔ GCRF rotation preserves vector magnitude."""
+        r_itrf_km, _, jd, fr = _skyfield_itrf_reference(51.5, -0.1, 0.0, 2451545.0)
+        r_gcrf = itrf_to_gcrf(jnp.array(r_itrf_km), jnp.float64(jd), jnp.float64(fr))
+        np.testing.assert_allclose(
+            float(jnp.linalg.norm(r_gcrf)),
+            np.linalg.norm(r_itrf_km),
+            rtol=1e-14)
+
+    def test_jit_compatible(self):
+        """itrf_to_gcrf and gcrf_to_itrf are already JIT-compiled."""
+        r_itrf_km, _, jd, fr = _skyfield_itrf_reference(0.0, 0.0, 0.0, 2451545.0)
+        r = jnp.array(r_itrf_km)
+        jd_ = jnp.float64(jd)
+        fr_ = jnp.float64(fr)
+
+        r1 = itrf_to_gcrf(r, jd_, fr_)
+        r2 = jax.jit(itrf_to_gcrf)(r, jd_, fr_)
+        np.testing.assert_allclose(np.array(r1), np.array(r2), atol=1e-15)
+
+        r3 = gcrf_to_itrf(r1, jd_, fr_)
+        r4 = jax.jit(gcrf_to_itrf)(r1, jd_, fr_)
+        np.testing.assert_allclose(np.array(r3), np.array(r4), atol=1e-15)
+
+    def test_vmap_over_times(self):
+        """itrf_to_gcrf works under vmap over time axis."""
+        from skyfield.api import load, wgs84
+        ts = load.timescale()
+        obs = wgs84.latlon(51.5, -0.1, elevation_m=0)
+        r_itrf_km = jnp.array(obs.itrs_xyz.km)
+
+        jd_vals = jnp.array([2451545.0, 2453736.5, 2456658.5], dtype=jnp.float64)
+        fr_vals = jnp.zeros(3, dtype=jnp.float64)
+
+        r_batch = jax.vmap(itrf_to_gcrf, in_axes=(None, 0, 0))(r_itrf_km, jd_vals, fr_vals)
+        assert r_batch.shape == (3, 3)
+
+        for i in range(3):
+            r_single = itrf_to_gcrf(r_itrf_km, jd_vals[i], fr_vals[i])
+            np.testing.assert_allclose(
+                np.array(r_batch[i]), np.array(r_single), atol=1e-12)
