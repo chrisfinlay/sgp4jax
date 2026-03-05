@@ -10,6 +10,8 @@ from sgp4jax._constants import GravityConstants, WGS72OLD, WGS72, WGS84
 from sgp4jax._types import SatRec, make_satrec
 from sgp4jax._tle import tle_to_satrec
 from sgp4jax._propagation import sgp4 as propagate
+from sgp4jax._propagation_leo import sgp4_leo as propagate_leo
+from sgp4jax._propagation_sdp4_nr import sgp4_sdp4_nr as propagate_sdp4_nr
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
 
@@ -18,6 +20,8 @@ __all__ = [
     "WGS72OLD", "WGS72", "WGS84",
     "tle_to_satrec", "tles_to_satrec",
     "propagate", "propagate_jd",
+    "propagate_leo", "propagate_jd_leo",
+    "propagate_sdp4_nr", "propagate_jd_sdp4_nr",
     "teme_to_gcrf",
     "itrf_to_gcrf", "gcrf_to_itrf",
     "update_iers_table", "load_iers_table", "utc_to_ut1",
@@ -51,6 +55,28 @@ def propagate_jd(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayL
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
     return propagate(satrec, tsince)  # type: ignore[no-any-return]
+
+
+def propagate_jd_leo(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """Propagate a near-earth satellite to Julian Date (jd + fr).
+
+    LEO/near-earth only — see :func:`propagate_leo` for details.
+    Returns TEME position (km), velocity (km/s), and error code.
+    """
+    tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
+              (fr - satrec.jdsatepochF) * 1440.0)
+    return propagate_leo(satrec, tsince)  # type: ignore[no-any-return]
+
+
+def propagate_jd_sdp4_nr(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
+    """Propagate a deep-space no-resonance (irez=0) satellite to Julian Date (jd + fr).
+
+    Deep-space irez=0 only — see :func:`propagate_sdp4_nr` for details.
+    Returns TEME position (km), velocity (km/s), and error code.
+    """
+    tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
+              (fr - satrec.jdsatepochF) * 1440.0)
+    return propagate_sdp4_nr(satrec, tsince)  # type: ignore[no-any-return]
 
 
 def propagate_gcrf(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
