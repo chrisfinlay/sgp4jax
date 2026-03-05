@@ -11,6 +11,7 @@ from sgp4jax._types import SatRec, make_satrec
 from sgp4jax._tle import tle_to_satrec
 from sgp4jax._propagation import sgp4 as propagate
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
+from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
 
 __all__ = [
     "SatRec", "make_satrec",
@@ -19,6 +20,7 @@ __all__ = [
     "propagate", "propagate_jd",
     "teme_to_gcrf",
     "itrf_to_gcrf", "gcrf_to_itrf",
+    "update_iers_table", "load_iers_table", "utc_to_ut1",
     "propagate_gcrf", "propagate_jd_gcrf",
     "gcrf_positions", "gcrf_positions_multi",
 ]
