@@ -654,7 +654,7 @@ def _earth_orientation(
     gast = _gast_hours(T_tt, dpsi, mean_obl, jd_ut1, frac_ut1, jd_ut1, frac_tdb)
     gast_rad = gast / 24.0 * _tau
 
-    return M, gast_rad  # type: ignore[return-value]
+    return M, gast_rad
 
 
 @jax.jit
@@ -721,7 +721,7 @@ def itrf_to_gcrf(
     """
     M, gast_rad = _earth_orientation(jd, fr)
     R = M.T @ _rot_z(gast_rad)
-    return R @ r_itrf  # type: ignore[return-value]
+    return R @ r_itrf
 
 
 @jax.jit
@@ -748,4 +748,4 @@ def gcrf_to_itrf(
     """
     M, gast_rad = _earth_orientation(jd, fr)
     R = _rot_z(-gast_rad) @ M
-    return R @ r_gcrf  # type: ignore[return-value]
+    return R @ r_gcrf

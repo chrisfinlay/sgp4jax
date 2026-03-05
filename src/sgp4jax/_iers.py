@@ -96,7 +96,7 @@ def _fetch(url: str | None = None) -> str:
     for u in urls:
         try:
             with urllib.request.urlopen(u, timeout=30) as resp:
-                return resp.read().decode("ascii", errors="replace")
+                return resp.read().decode("ascii", errors="replace")  # type: ignore[no-any-return]
         except (urllib.error.URLError, OSError) as exc:
             last_exc = exc
     raise RuntimeError(
