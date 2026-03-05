@@ -12,6 +12,7 @@ from sgp4jax._tle import tle_to_satrec
 from sgp4jax._propagation import sgp4 as propagate
 from sgp4jax._propagation_leo import sgp4_leo as propagate_leo
 from sgp4jax._propagation_sdp4_nr import sgp4_sdp4_nr as propagate_sdp4_nr
+from sgp4jax._propagation_mixed import propagate_mixed
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
 
@@ -22,6 +23,7 @@ __all__ = [
     "propagate", "propagate_jd",
     "propagate_leo", "propagate_jd_leo",
     "propagate_sdp4_nr", "propagate_jd_sdp4_nr",
+    "propagate_mixed",
     "teme_to_gcrf",
     "itrf_to_gcrf", "gcrf_to_itrf",
     "update_iers_table", "load_iers_table", "utc_to_ut1",
