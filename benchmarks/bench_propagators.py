@@ -1,16 +1,17 @@
 """Propagator performance benchmarks.
 
 Compares sgp4 (full), sgp4_leo, and sgp4_sdp4_nr against the reference
-sgp4 C library across three scenarios:
+sgp4 C library across four scenarios:
 
-  1. Single satellite, single time  — raw dispatch latency
-  2. Single satellite, N times      — temporal batch (vmap over tsince)
-  3. N satellites, single time      — constellation batch (vmap over satrec)
+  1. Single satellite, single time      — raw dispatch latency
+  2. Single satellite, N times          — temporal batch (vmap over tsince)
+  3. N satellites, single time          — constellation batch (vmap over satrec)
+  4. N satellites × M times (primary)  — full constellation × time grid
 
 Usage::
 
     python benchmarks/bench_propagators.py
-    python benchmarks/bench_propagators.py --batch-sizes 1,100,10000
+    python benchmarks/bench_propagators.py --scenario nm --sat-counts 10,100 --time-counts 100,1000
     python benchmarks/bench_propagators.py --repeats 20
 
 """
@@ -249,6 +250,65 @@ def bench_constellation_batch(batch_sizes: list[int], repeats: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Scenario 4: N satellites × M times (the primary use case)
+# ---------------------------------------------------------------------------
+
+def bench_nm_batch(sat_counts: list[int], time_counts: list[int], repeats: int) -> None:
+    _header("Scenario 4 — N satellites × M times (primary use case)")
+    print(f"  Reference: SatrecArray.sgp4(jd[M], fr[M]) → (N, M, 3)")
+    print(f"  JAX:       vmap(vmap(propagate, (None,0)), (0,None))(satrec[N], tsince[M])")
+
+    # JAX: outer vmap over satellites, inner vmap over times
+    vmap_full = jax.jit(jax.vmap(
+        jax.vmap(propagate,        in_axes=(None, 0)), in_axes=(0, None)))
+    vmap_leo  = jax.jit(jax.vmap(
+        jax.vmap(propagate_leo,    in_axes=(None, 0)), in_axes=(0, None)))
+    vmap_nr   = jax.jit(jax.vmap(
+        jax.vmap(propagate_sdp4_nr, in_axes=(None, 0)), in_axes=(0, None)))
+
+    for n_sats in sat_counts:
+        leo_tles = [[_LEO_L1, _LEO_L2]] * n_sats
+        gps_tles = [[_GPS_L1, _GPS_L2]] * n_sats
+        sat_leo_batch = tles_to_satrec(leo_tles, gravity=WGS84)
+        sat_gps_batch = tles_to_satrec(gps_tles, gravity=WGS84)
+        ref_leo_arr = SatrecArray([RefSatrec.twoline2rv(_LEO_L1, _LEO_L2, REF_WGS84)] * n_sats)
+        ref_gps_arr = SatrecArray([RefSatrec.twoline2rv(_GPS_L1, _GPS_L2, REF_WGS84)] * n_sats)
+
+        for n_times in time_counts:
+            n_total = n_sats * n_times
+            times_jnp = jnp.linspace(0.0, 1440.0, n_times)
+            times_np  = np.linspace(0.0, 1440.0, n_times)
+            jd_leo = np.full(n_times, _ref_leo.jdsatepoch)
+            fr_leo = _ref_leo.jdsatepochF + times_np / 1440.0
+            jd_gps = np.full(n_times, _ref_gps.jdsatepoch)
+            fr_gps = _ref_gps.jdsatepochF + times_np / 1440.0
+
+            # Warm up JAX
+            _ = jax.block_until_ready(vmap_full(sat_leo_batch, times_jnp))
+            _ = jax.block_until_ready(vmap_leo(sat_leo_batch, times_jnp))
+            _ = jax.block_until_ready(vmap_full(sat_gps_batch, times_jnp))
+            _ = jax.block_until_ready(vmap_nr(sat_gps_batch, times_jnp))
+
+            print(f"\n  N = {n_sats:,} sats × M = {n_times:,} times  ({n_total:,} propagations)")
+
+            print(f"\n  [LEO — ISS]")
+            ref_t  = _bench(lambda: ref_leo_arr.sgp4(jd_leo, fr_leo), repeats=repeats)
+            t_full = _bench_jax(lambda: vmap_full(sat_leo_batch, times_jnp), repeats=repeats)
+            t_leo  = _bench_jax(lambda: vmap_leo(sat_leo_batch, times_jnp), repeats=repeats)
+            print(_row("SatrecArray.sgp4 (ref C)",  ref_t,  n_total))
+            print(_row("sgp4 vmap×vmap (JAX full)", t_full, n_total, ref_t=ref_t))
+            print(_row("sgp4_leo vmap×vmap (JAX)",  t_leo,  n_total, ref_t=ref_t))
+
+            print(f"\n  [Deep-space irez=0 — GPS]")
+            ref_t2  = _bench(lambda: ref_gps_arr.sgp4(jd_gps, fr_gps), repeats=repeats)
+            t_full2 = _bench_jax(lambda: vmap_full(sat_gps_batch, times_jnp), repeats=repeats)
+            t_nr    = _bench_jax(lambda: vmap_nr(sat_gps_batch, times_jnp), repeats=repeats)
+            print(_row("SatrecArray.sgp4 (ref C)",       ref_t2,  n_total))
+            print(_row("sgp4 vmap×vmap (JAX full)",      t_full2, n_total, ref_t=ref_t2))
+            print(_row("sgp4_sdp4_nr vmap×vmap (JAX)",   t_nr,    n_total, ref_t=ref_t2))
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -258,13 +318,22 @@ def main() -> None:
     parser.add_argument("--batch-sizes", default="1,10,100,1000",
                         help="Comma-separated list of N values for batch scenarios "
                              "(default: 1,10,100,1000)")
+    parser.add_argument("--sat-counts", default="10,100",
+                        help="Comma-separated satellite counts for scenario 4 "
+                             "(default: 10,100)")
+    parser.add_argument("--time-counts", default="100,1000",
+                        help="Comma-separated time-point counts for scenario 4 "
+                             "(default: 100,1000)")
     parser.add_argument("--repeats", type=int, default=10,
                         help="Timing repetitions per measurement (default: 10)")
-    parser.add_argument("--scenario", choices=["single", "temporal", "constellation", "all"],
+    parser.add_argument("--scenario",
+                        choices=["single", "temporal", "constellation", "nm", "all"],
                         default="all", help="Which scenario(s) to run (default: all)")
     args = parser.parse_args()
 
     batch_sizes = [int(x) for x in args.batch_sizes.split(",")]
+    sat_counts  = [int(x) for x in args.sat_counts.split(",")]
+    time_counts = [int(x) for x in args.time_counts.split(",")]
 
     print(f"\nsgp4jax propagator benchmarks")
     print(f"  JAX backend : {jax.default_backend()}")
@@ -280,6 +349,9 @@ def main() -> None:
 
     if args.scenario in ("constellation", "all"):
         bench_constellation_batch(batch_sizes, args.repeats)
+
+    if args.scenario in ("nm", "all"):
+        bench_nm_batch(sat_counts, time_counts, args.repeats)
 
     print()
 
