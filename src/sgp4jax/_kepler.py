@@ -57,7 +57,7 @@ def _solve_kepler(
     E = jnp.asarray(M, dtype=jnp.float64)
     for _ in range(n_iter):
         E = E + (M - E + ecco * jnp.sin(E)) / (1.0 - ecco * jnp.cos(E))
-    return E  # type: ignore[return-value]
+    return E
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ def _kepler_rv_teme(
         v_teme: Velocity in TEME frame, shape ``(3,)``, in km/s.
     """
     # --- Time since TLE epoch (minutes) ---
-    tsince = (jd - jdsatepoch + fr - jdsatepochF) * 1440.0
+    tsince = (jd - jdsatepoch + fr - jdsatepochF) * 1440.0  # type: ignore[operator]
 
     # --- Semi-major axis via Kepler's third law  n² a³ = μ ---
     # no_kozai in rad/min → convert μ from km³/s² to km³/min² (*3600).

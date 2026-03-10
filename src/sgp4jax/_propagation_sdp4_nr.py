@@ -36,13 +36,11 @@ def sgp4_sdp4_nr(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Arra
       deep-space assignments.
     * dpper (lunar-solar periodics) is retained unchanged.
 
-    **Warning**: Do not use for:
-    - Near-earth satellites (period < 225 min): dpper and secular drift
-      terms are not set and will be zero / garbage.
-    - irez=1 satellites (GEO, synchronous): resonance terms are skipped
-      and the result will diverge.
-    - irez=2 satellites (Molniya, 12h resonant with e≥0.5): resonance
-      terms are skipped and the result will diverge.
+    .. warning::
+
+        Do not use for near-earth satellites (period < 225 min),
+        irez=1 (GEO/synchronous), or irez=2 (Molniya/12h resonant)
+        satellites — resonance and drag terms will be missing or zero.
 
     Args:
         satrec: Initialized SatRec (deep-space, irez=0 only)
