@@ -111,7 +111,6 @@ Gravity Constants
 -----------------
 
 .. autoclass:: sgp4jax._constants.GravityConstants
-   :members:
 
 .. autodata:: sgp4jax.WGS84
 
