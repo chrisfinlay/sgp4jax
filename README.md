@@ -121,6 +121,13 @@ sat_wgs72 = sgp4jax.tle_to_satrec(line1, line2, gravity=sgp4jax.WGS72)
 | `propagate_jd_sdp4_nr(satrec, jd, fr)` | Deep-space no-resonance, Julian Date input |
 | `propagate_mixed(satrec_batch, times)` | Heterogeneous batch; routes each group to the right propagator |
 
+### Keplerian Propagation (no perturbations)
+
+| Function / Object | Description |
+|---|---|
+| `kepler_gcrf_positions(satrec, times_jd)` | One satellite × many Julian dates → GCRF; pure two-body, no drag or J2 |
+| `kepler_gcrf_positions_multi(satrec, times_jd)` | Multiple satellites × many Julian dates → GCRF; pure two-body |
+
 ### Propagation (GCRF frame)
 
 | Function / Object | Description |

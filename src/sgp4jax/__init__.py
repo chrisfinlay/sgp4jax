@@ -15,6 +15,7 @@ from sgp4jax._propagation_sdp4_nr import sgp4_sdp4_nr as propagate_sdp4_nr
 from sgp4jax._propagation_mixed import propagate_mixed, gcrf_positions_mixed
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
+from sgp4jax._kepler import kepler_gcrf_positions, kepler_gcrf_positions_multi
 
 __all__ = [
     "SatRec", "make_satrec",
@@ -31,6 +32,7 @@ __all__ = [
     "gcrf_positions", "gcrf_positions_multi",
     "gcrf_positions_multi_leo", "gcrf_positions_multi_sdp4_nr",
     "gcrf_positions_mixed",
+    "kepler_gcrf_positions", "kepler_gcrf_positions_multi",
 ]
 
 

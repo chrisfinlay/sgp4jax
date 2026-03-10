@@ -52,6 +52,22 @@ Frame Transformations
 
 .. autofunction:: sgp4jax.propagate_jd_gcrf
 
+Keplerian Propagation (no perturbations)
+-----------------------------------------
+
+Pure two-body Keplerian motion using only the six classical TLE elements
+(inclination, RAAN, eccentricity, argument of perigee, mean anomaly, mean
+motion).  All perturbations are ignored.  Fully differentiable.
+
+.. note::
+   TLE elements are Brouwer *mean* elements.  Because SGP4 adds short-period
+   corrections when converting to osculating elements, Keplerian positions will
+   differ from SGP4 by O(1–50 km).  This is expected behaviour, not a bug.
+
+.. autofunction:: sgp4jax.kepler_gcrf_positions
+
+.. autofunction:: sgp4jax.kepler_gcrf_positions_multi
+
 Batch GCRF Convenience Functions
 ---------------------------------
 
