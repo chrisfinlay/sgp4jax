@@ -11,6 +11,7 @@ from sgp4jax._types import SatRec
 from sgp4jax._propagation import sgp4 as _propagate_full
 from sgp4jax._propagation_leo import sgp4_leo as _propagate_leo
 from sgp4jax._propagation_sdp4_nr import sgp4_sdp4_nr as _propagate_sdp4_nr
+from sgp4jax._frames import teme_to_gcrf as _teme_to_gcrf
 
 
 def _slice_satrec(satrec: SatRec, indices: np.ndarray) -> SatRec:
@@ -36,6 +37,88 @@ def _group_propagator(method: int, irez: int):
         fn = _propagate_full
     # outer vmap over satellites, inner vmap over times → (N_group, M, 3)
     return jax.jit(jax.vmap(jax.vmap(fn, in_axes=(None, 0)), in_axes=(0, None)))
+
+
+def _make_jd_gcrf_fn(fn):
+    """Wrap a tsince propagator as (satrec, jd, fr) → (r_gcrf, v_gcrf, error)."""
+    def _inner(satrec, jd, fr):
+        tsince = (jd - satrec.jdsatepoch) * 1440.0 + (fr - satrec.jdsatepochF) * 1440.0
+        r_teme, v_teme, error = fn(satrec, tsince)
+        r_gcrf, v_gcrf = _teme_to_gcrf(r_teme, v_teme, jd, fr)
+        return r_gcrf, v_gcrf, error
+    return _inner
+
+
+@functools.lru_cache(maxsize=8)
+def _group_propagator_gcrf(method: int, irez: int):
+    """Cached JIT-compiled vmap(vmap(fn_gcrf)) returning GCRF output.
+
+    Same dispatch table as :func:`_group_propagator` but wraps each propagator
+    with a Julian-Date input layer and TEME→GCRF frame rotation.
+    """
+    if method == 0:
+        fn = _propagate_leo
+    elif irez == 0:
+        fn = _propagate_sdp4_nr
+    else:
+        fn = _propagate_full
+    fn_gcrf = _make_jd_gcrf_fn(fn)
+    # inner vmap over times (jd/fr vary), outer vmap over satellites (satrec varies)
+    return jax.jit(
+        jax.vmap(jax.vmap(fn_gcrf, in_axes=(None, 0, 0)), in_axes=(0, None, None))
+    )
+
+
+def gcrf_positions_mixed(
+    satrec_batch: SatRec,
+    times_jd: jax.typing.ArrayLike,
+) -> tuple[jax.Array, jax.Array]:
+    """Propagate a heterogeneous satellite batch to multiple UTC Julian dates in GCRF.
+
+    Groups satellites by type and dispatches each group to its specialized
+    propagator (near-earth / deep-space-no-resonance / deep-space-resonant),
+    then rotates all results to the GCRF frame.  Results are reassembled in
+    the original satellite ordering.
+
+    .. note::
+        Like :func:`propagate_mixed`, this function is **not** JIT-compilable
+        as a whole.
+
+    Args:
+        satrec_batch: Batched SatRec from :func:`tles_to_satrec`, ``N`` satellites.
+        times_jd: 1-D array of UTC Julian dates, shape ``(M,)``.
+
+    Returns:
+        r_gcrf: Positions in GCRF frame, shape ``(N, M, 3)`` in km.
+        v_gcrf: Velocities in GCRF frame, shape ``(N, M, 3)`` in km/s.
+    """
+    times_jd = jnp.asarray(times_jd)
+    jd_arr   = jnp.floor(times_jd)
+    fr_arr   = times_jd - jd_arr
+
+    n_sats  = int(satrec_batch.method.shape[0])
+    n_times = int(times_jd.shape[0])
+
+    methods = np.asarray(satrec_batch.method)
+    irezs   = np.asarray(satrec_batch.irez)
+
+    groups: dict[tuple[int, int], list[int]] = {}
+    for i in range(n_sats):
+        key = (int(methods[i]), int(irezs[i]))
+        groups.setdefault(key, []).append(i)
+
+    r_out = jnp.zeros((n_sats, n_times, 3))
+    v_out = jnp.zeros((n_sats, n_times, 3))
+
+    for (method, irez), sat_indices in groups.items():
+        idx = np.array(sat_indices)
+        sub = _slice_satrec(satrec_batch, idx)
+        fn  = _group_propagator_gcrf(method, irez)
+        r_g, v_g, _ = fn(sub, jd_arr, fr_arr)    # (n_group, M, 3)
+        r_out = r_out.at[idx].set(r_g)
+        v_out = v_out.at[idx].set(v_g)
+
+    return r_out, v_out
 
 
 def propagate_mixed(

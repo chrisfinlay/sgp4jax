@@ -12,6 +12,7 @@ import pytest
 
 from sgp4jax._iers import utc_to_ut1, load_iers_table, update_iers_table, _mjd, _dut1
 from sgp4jax._tle import jday
+import sgp4jax._iers as _iers_mod
 
 
 # ---------------------------------------------------------------------------
@@ -232,3 +233,83 @@ def test_itrf_gcrf_with_utc_input():
         np.array(r_gcrf_ours), r_gcrf_sf, atol=1e-6,
         err_msg="UTC→UT1→GCRF pipeline disagrees with Skyfield"
     )
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: parser and error paths (no network required)
+# ---------------------------------------------------------------------------
+
+def _make_iers_line(mjd: float, flag: str, dut1: float) -> str:
+    """Build a minimal finals2000A.all line matching the fixed-column spec."""
+    buf = list(' ' * 80)
+    for i, ch in enumerate(f"{mjd:8.2f}"):
+        buf[7 + i] = ch
+    buf[57] = flag
+    for i, ch in enumerate(f"{dut1:10.7f}"):
+        buf[58 + i] = ch
+    return ''.join(buf)
+
+
+def test_parse_finals2000A_valid_lines():
+    """Parser extracts MJD and DUT1 from I/P-flagged lines."""
+    from sgp4jax._iers import _parse_finals2000A
+    text = '\n'.join([
+        _make_iers_line(50001.0, 'I', 0.1234567),
+        _make_iers_line(50002.0, 'P', 0.2345678),
+    ])
+    mjd, dut1 = _parse_finals2000A(text)
+    np.testing.assert_array_equal(mjd, [50001.0, 50002.0])
+    np.testing.assert_allclose(dut1, [0.1234567, 0.2345678], atol=1e-9)
+
+
+def test_parse_finals2000A_skips_invalid_lines():
+    """Parser silently skips short lines, bad flags, and non-numeric fields."""
+    from sgp4jax._iers import _parse_finals2000A
+
+    # Non-numeric MJD
+    bad_mjd = list(_make_iers_line(50003.0, 'I', 0.0))
+    bad_mjd[7:15] = list('XXXXXXXX')
+
+    # Invalid flag ('X' is not 'I' or 'P')
+    bad_flag = _make_iers_line(50004.0, 'X', 0.0)
+
+    # Non-numeric DUT1
+    bad_dut1 = list(_make_iers_line(50005.0, 'I', 0.0))
+    bad_dut1[58:68] = list('NOT_FLOAT.')
+
+    text = '\n'.join([
+        'too short',                          # len < 68
+        ''.join(bad_mjd),
+        bad_flag,
+        ''.join(bad_dut1),
+        _make_iers_line(50006.0, 'I', 0.5),  # only valid line
+    ])
+    mjd, dut1 = _parse_finals2000A(text)
+    assert list(mjd) == [50006.0]
+    assert float(dut1[0]) == pytest.approx(0.5, abs=1e-9)
+
+
+def test_parse_finals2000A_empty_raises():
+    """Parser raises ValueError when no valid data lines are found."""
+    from sgp4jax._iers import _parse_finals2000A
+    with pytest.raises(ValueError, match="No UT1-UTC data"):
+        _parse_finals2000A("no valid lines here\nshort\n")
+
+
+def test_load_iers_table_missing_file():
+    """load_iers_table raises FileNotFoundError for a non-existent path."""
+    with pytest.raises(FileNotFoundError, match="IERS cache not found"):
+        load_iers_table("/nonexistent/sgp4jax_iers_missing_test.npz")
+
+
+def test_utc_to_ut1_raises_when_not_loaded():
+    """utc_to_ut1 raises RuntimeError when the IERS table has not been loaded."""
+    old_mjd, old_dut1 = _iers_mod._mjd, _iers_mod._dut1
+    try:
+        _iers_mod._mjd = None
+        _iers_mod._dut1 = None
+        with pytest.raises(RuntimeError, match="IERS table not loaded"):
+            utc_to_ut1(jnp.float64(2451545.0), jnp.float64(0.0))
+    finally:
+        _iers_mod._mjd = old_mjd
+        _iers_mod._dut1 = old_dut1

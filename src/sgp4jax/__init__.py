@@ -12,7 +12,7 @@ from sgp4jax._tle import tle_to_satrec
 from sgp4jax._propagation import sgp4 as propagate
 from sgp4jax._propagation_leo import sgp4_leo as propagate_leo
 from sgp4jax._propagation_sdp4_nr import sgp4_sdp4_nr as propagate_sdp4_nr
-from sgp4jax._propagation_mixed import propagate_mixed
+from sgp4jax._propagation_mixed import propagate_mixed, gcrf_positions_mixed
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
 
@@ -29,6 +29,8 @@ __all__ = [
     "update_iers_table", "load_iers_table", "utc_to_ut1",
     "propagate_gcrf", "propagate_jd_gcrf",
     "gcrf_positions", "gcrf_positions_multi",
+    "gcrf_positions_multi_leo", "gcrf_positions_multi_sdp4_nr",
+    "gcrf_positions_mixed",
 ]
 
 
@@ -50,9 +52,19 @@ def tles_to_satrec(tles: list[list[str]], gravity: GravityConstants | None = Non
 
 
 def propagate_jd(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """Propagate satellite to Julian Date (jd + fr).
+    """Propagate satellite to Julian Date (jd + fr) in TEME.
 
-    Returns TEME position (km), velocity (km/s), and error code.
+    Converts the Julian Date to minutes-since-epoch and calls :func:`propagate`.
+
+    Args:
+        satrec: Initialized SatRec from :func:`tle_to_satrec`.
+        jd: Julian date (UTC), integer/whole part (scalar).
+        fr: Julian date (UTC), fractional part (scalar).
+
+    Returns:
+        r: Position in TEME frame (3,) in km.
+        v: Velocity in TEME frame (3,) in km/s.
+        error: Error code (0 = success).
     """
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
@@ -60,10 +72,20 @@ def propagate_jd(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayL
 
 
 def propagate_jd_leo(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """Propagate a near-earth satellite to Julian Date (jd + fr).
+    """Propagate a near-earth satellite to Julian Date (jd + fr) in TEME.
 
-    LEO/near-earth only — see :func:`propagate_leo` for details.
-    Returns TEME position (km), velocity (km/s), and error code.
+    LEO/near-earth only variant — deep-space code paths are absent.
+    See :func:`propagate_leo` for the performance trade-offs and limitations.
+
+    Args:
+        satrec: Initialized SatRec from :func:`tle_to_satrec` (near-earth only).
+        jd: Julian date (UTC), integer/whole part (scalar).
+        fr: Julian date (UTC), fractional part (scalar).
+
+    Returns:
+        r: Position in TEME frame (3,) in km.
+        v: Velocity in TEME frame (3,) in km/s.
+        error: Error code (0 = success).
     """
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
@@ -71,10 +93,20 @@ def propagate_jd_leo(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.Ar
 
 
 def propagate_jd_sdp4_nr(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
-    """Propagate a deep-space no-resonance (irez=0) satellite to Julian Date (jd + fr).
+    """Propagate a deep-space no-resonance (irez=0) satellite to Julian Date (jd + fr) in TEME.
 
-    Deep-space irez=0 only — see :func:`propagate_sdp4_nr` for details.
-    Returns TEME position (km), velocity (km/s), and error code.
+    Deep-space irez=0 only variant — resonance integrator is absent.
+    See :func:`propagate_sdp4_nr` for the performance trade-offs and limitations.
+
+    Args:
+        satrec: Initialized SatRec from :func:`tle_to_satrec` (deep-space, irez=0 only).
+        jd: Julian date (UTC), integer/whole part (scalar).
+        fr: Julian date (UTC), fractional part (scalar).
+
+    Returns:
+        r: Position in TEME frame (3,) in km.
+        v: Velocity in TEME frame (3,) in km/s.
+        error: Error code (0 = success).
     """
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
@@ -157,6 +189,65 @@ def gcrf_positions_multi(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tupl
     fr = times_jd - jd
     r, v, _ = vmap(
         vmap(propagate_jd_gcrf, (None, 0, 0)),
+        (0, None, None),
+    )(satrec, jd, fr)
+    return r, v
+
+
+def _propagate_jd_gcrf_leo(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
+    r_teme, v_teme, error = propagate_jd_leo(satrec, jd, fr)
+    r_gcrf, v_gcrf = teme_to_gcrf(r_teme, v_teme, jd, fr)
+    return r_gcrf, v_gcrf, error
+
+
+def _propagate_jd_gcrf_sdp4_nr(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
+    r_teme, v_teme, error = propagate_jd_sdp4_nr(satrec, jd, fr)
+    r_gcrf, v_gcrf = teme_to_gcrf(r_teme, v_teme, jd, fr)
+    return r_gcrf, v_gcrf, error
+
+
+def gcrf_positions_multi_leo(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
+    """Propagate a near-earth (LEO) satellite batch to multiple UTC Julian dates in GCRF.
+
+    Use this for homogeneous batches of near-earth satellites (``method=0``).
+    For heterogeneous batches, use :func:`gcrf_positions_mixed`.
+
+    Args:
+        satrec: Batched SatRec from :func:`tles_to_satrec`, all near-earth.
+        times_jd: 1-D array of UTC Julian dates, shape ``(n_times,)``.
+
+    Returns:
+        r_gcrf: Positions in GCRF, shape ``(n_sat, n_times, 3)`` in km.
+        v_gcrf: Velocities in GCRF, shape ``(n_sat, n_times, 3)`` in km/s.
+    """
+    jd = jnp.floor(times_jd)
+    fr = times_jd - jd
+    r, v, _ = vmap(
+        vmap(_propagate_jd_gcrf_leo, (None, 0, 0)),
+        (0, None, None),
+    )(satrec, jd, fr)
+    return r, v
+
+
+def gcrf_positions_multi_sdp4_nr(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array]:
+    """Propagate a deep-space no-resonance satellite batch to multiple UTC Julian dates in GCRF.
+
+    Use this for homogeneous batches of deep-space irez=0 satellites
+    (GPS/GLONASS/Galileo/BeiDou MEO constellations).
+    For heterogeneous batches, use :func:`gcrf_positions_mixed`.
+
+    Args:
+        satrec: Batched SatRec from :func:`tles_to_satrec`, all deep-space irez=0.
+        times_jd: 1-D array of UTC Julian dates, shape ``(n_times,)``.
+
+    Returns:
+        r_gcrf: Positions in GCRF, shape ``(n_sat, n_times, 3)`` in km.
+        v_gcrf: Velocities in GCRF, shape ``(n_sat, n_times, 3)`` in km/s.
+    """
+    jd = jnp.floor(times_jd)
+    fr = times_jd - jd
+    r, v, _ = vmap(
+        vmap(_propagate_jd_gcrf_sdp4_nr, (None, 0, 0)),
         (0, None, None),
     )(satrec, jd, fr)
     return r, v

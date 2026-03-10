@@ -102,17 +102,57 @@ sat_wgs72 = sgp4jax.tle_to_satrec(line1, line2, gravity=sgp4jax.WGS72)
 
 ## API
 
+### TLE Parsing
+
 | Function / Object | Description |
 |---|---|
 | `tle_to_satrec(line1, line2, gravity=WGS72)` | Parse a TLE and initialize a satellite record |
 | `tles_to_satrec(tles, gravity=WGS72)` | Parse multiple TLEs and return a batched SatRec |
-| `propagate(satrec, tsince)` | Propagate to `tsince` minutes from epoch |
-| `propagate_jd(satrec, jd, fr)` | Propagate to a split Julian Date (TEME) |
-| `propagate_gcrf(satrec, tsince)` | Propagate to `tsince` minutes, return GCRF |
-| `propagate_jd_gcrf(satrec, jd, fr)` | Propagate to split Julian Date, return GCRF |
-| `teme_to_gcrf(r_teme, v_teme, jd, fr)` | Transform TEME vectors to GCRF |
-| `gcrf_positions(satrec, times_jd)` | Propagate one satellite to many Julian dates (GCRF) |
-| `gcrf_positions_multi(satrec, times_jd)` | Propagate multiple satellites to many Julian dates (GCRF) |
+
+### Propagation (TEME frame)
+
+| Function / Object | Description |
+|---|---|
+| `propagate(satrec, tsince)` | Full SGP4/SDP4 propagation to `tsince` minutes from epoch |
+| `propagate_jd(satrec, jd, fr)` | Full SGP4/SDP4 propagation to split Julian Date |
+| `propagate_leo(satrec, tsince)` | Near-earth only; no deep-space code — faster compile |
+| `propagate_jd_leo(satrec, jd, fr)` | Near-earth only, Julian Date input |
+| `propagate_sdp4_nr(satrec, tsince)` | Deep-space, no-resonance (irez=0) only |
+| `propagate_jd_sdp4_nr(satrec, jd, fr)` | Deep-space no-resonance, Julian Date input |
+| `propagate_mixed(satrec_batch, times)` | Heterogeneous batch; routes each group to the right propagator |
+
+### Propagation (GCRF frame)
+
+| Function / Object | Description |
+|---|---|
+| `propagate_gcrf(satrec, tsince)` | Full propagation, returns GCRF position/velocity |
+| `propagate_jd_gcrf(satrec, jd, fr)` | Full propagation to Julian Date, returns GCRF |
+| `gcrf_positions(satrec, times_jd)` | One satellite × many Julian dates → GCRF positions |
+| `gcrf_positions_multi(satrec, times_jd)` | Multiple satellites × many Julian dates → GCRF |
+| `gcrf_positions_multi_leo(satrec, times_jd)` | Near-earth batch × many Julian dates → GCRF |
+| `gcrf_positions_multi_sdp4_nr(satrec, times_jd)` | Deep-space no-resonance batch × many Julian dates → GCRF |
+| `gcrf_positions_mixed(satrec_batch, times_jd)` | Heterogeneous batch × many Julian dates → GCRF |
+
+### Frame Transformations
+
+| Function / Object | Description |
+|---|---|
+| `teme_to_gcrf(r_teme, v_teme, jd, fr)` | Transform TEME position/velocity to GCRF |
+| `itrf_to_gcrf(r_itrf, jd, fr)` | Transform ITRF (Earth-fixed) position to GCRF |
+| `gcrf_to_itrf(r_gcrf, jd, fr)` | Transform GCRF position to ITRF (Earth-fixed) |
+
+### Earth Orientation (IERS)
+
+| Function / Object | Description |
+|---|---|
+| `update_iers_table(cache_path, url)` | Download IERS finals2000A and refresh the local cache |
+| `load_iers_table(cache_path)` | Load the IERS table from a local `.npz` cache |
+| `utc_to_ut1(jd_utc, fr_utc)` | Convert UTC Julian date to UT1 using the loaded IERS table |
+
+### Types and Constants
+
+| Function / Object | Description |
+|---|---|
 | `SatRec` | NamedTuple holding all satellite state (JAX arrays) |
 | `make_satrec(**kwargs)` | Create a SatRec with defaults of 0.0 for unspecified fields |
 | `WGS84`, `WGS72`, `WGS72OLD` | Gravity model constants |
@@ -134,6 +174,18 @@ pytest tests/ -v
 ```
 
 The test suite validates against the reference [python-sgp4](https://github.com/brandon-rhodes/python-sgp4) library, including the full SGP4-VER.TLE verification dataset (30+ satellites, thousands of data points).
+
+Tests that require a network connection (to download IERS data) are excluded by default via the `network` marker. Run them explicitly with:
+
+```bash
+pytest -m network
+```
+
+Or include them alongside the full suite:
+
+```bash
+pytest -m ''
+```
 
 ## Acknowledgements
 
