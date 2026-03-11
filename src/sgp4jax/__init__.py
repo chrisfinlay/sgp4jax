@@ -16,6 +16,16 @@ from sgp4jax._propagation_mixed import propagate_mixed, gcrf_positions_mixed
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
 from sgp4jax._kepler import kepler_gcrf_positions, kepler_gcrf_positions_multi
+from sgp4jax._covariance import (
+    ric_rotation,
+    cov_ric_to_teme, cov_teme_to_ric,
+    cov_elements_to_teme, cov_teme_to_elements,
+    cov_ric_to_elements, cov_elements_to_ric,
+    elements_jacobian,
+    elements7_jacobian,
+    cov_elements7_to_teme, cov_teme_to_elements7,
+    cov_elements7_to_ric, cov_ric_to_elements7,
+)
 
 __all__ = [
     "SatRec", "make_satrec",
@@ -33,6 +43,14 @@ __all__ = [
     "gcrf_positions_multi_leo", "gcrf_positions_multi_sdp4_nr",
     "gcrf_positions_mixed",
     "kepler_gcrf_positions", "kepler_gcrf_positions_multi",
+    "ric_rotation",
+    "cov_ric_to_teme", "cov_teme_to_ric",
+    "cov_elements_to_teme", "cov_teme_to_elements",
+    "cov_ric_to_elements", "cov_elements_to_ric",
+    "elements_jacobian",
+    "elements7_jacobian",
+    "cov_elements7_to_teme", "cov_teme_to_elements7",
+    "cov_elements7_to_ric", "cov_ric_to_elements7",
 ]
 
 

@@ -52,6 +52,56 @@ Frame Transformations
 
 .. autofunction:: sgp4jax.propagate_jd_gcrf
 
+Covariance Transformations
+--------------------------
+
+Transform covariance matrices between the RIC (Radial, In-track, Cross-track)
+frame, TEME Cartesian, and orbital element space.  All Jacobians are computed
+via :func:`jax.jacobian`, so all transforms are fully differentiable.
+
+Two element models are provided:
+
+* **6-element** — ``(inclo, nodeo, ecco, argpo, mo, no_kozai)`` — Keplerian
+  Jacobian, no drag.
+* **7-element** — ``(inclo, nodeo, ecco, argpo, mo, no_kozai, bstar)`` — SGP4
+  Jacobian through the full ``sgp4init → sgp4`` pipeline; bstar's influence on
+  the trajectory is captured.
+
+Frame utilities
+~~~~~~~~~~~~~~~
+
+.. autofunction:: sgp4jax.ric_rotation
+
+.. autofunction:: sgp4jax.cov_ric_to_teme
+
+.. autofunction:: sgp4jax.cov_teme_to_ric
+
+6-element model
+~~~~~~~~~~~~~~~
+
+.. autofunction:: sgp4jax.elements_jacobian
+
+.. autofunction:: sgp4jax.cov_elements_to_teme
+
+.. autofunction:: sgp4jax.cov_teme_to_elements
+
+.. autofunction:: sgp4jax.cov_ric_to_elements
+
+.. autofunction:: sgp4jax.cov_elements_to_ric
+
+7-element model (with drag)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: sgp4jax.elements7_jacobian
+
+.. autofunction:: sgp4jax.cov_elements7_to_teme
+
+.. autofunction:: sgp4jax.cov_teme_to_elements7
+
+.. autofunction:: sgp4jax.cov_elements7_to_ric
+
+.. autofunction:: sgp4jax.cov_ric_to_elements7
+
 Keplerian Propagation (no perturbations)
 -----------------------------------------
 
