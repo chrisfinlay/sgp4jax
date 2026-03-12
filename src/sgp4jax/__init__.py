@@ -16,6 +16,7 @@ from sgp4jax._propagation_mixed import propagate_mixed, gcrf_positions_mixed
 from sgp4jax._frames import teme_to_gcrf, itrf_to_gcrf, gcrf_to_itrf
 from sgp4jax._iers import update_iers_table, load_iers_table, utc_to_ut1
 from sgp4jax._kepler import kepler_gcrf_positions, kepler_gcrf_positions_multi
+from sgp4jax._sgp4init import sgp4init as _sgp4init
 from sgp4jax._covariance import (
     ric_rotation,
     cov_ric_to_teme, cov_teme_to_ric,
@@ -30,7 +31,7 @@ from sgp4jax._covariance import (
 __all__ = [
     "SatRec", "make_satrec",
     "WGS72OLD", "WGS72", "WGS84",
-    "tle_to_satrec", "tles_to_satrec",
+    "tle_to_satrec", "tles_to_satrec", "satrec_from_elements",
     "propagate", "propagate_jd",
     "propagate_leo", "propagate_jd_leo",
     "propagate_sdp4_nr", "propagate_jd_sdp4_nr",
@@ -69,6 +70,75 @@ def tles_to_satrec(tles: list[list[str]], gravity: GravityConstants | None = Non
     """
     satrecs = [tle_to_satrec(l1, l2, gravity=gravity) for l1, l2 in tles]
     return SatRec(*[jnp.stack(vals) for vals in zip(*satrecs)])
+
+
+def satrec_from_elements(
+    inclo: float,
+    nodeo: float,
+    ecco: float,
+    argpo: float,
+    mo: float,
+    no_kozai: float,
+    *,
+    bstar: float = 0.0,
+    ndot: float = 0.0,
+    nddot: float = 0.0,
+    epoch_jd: float = 2451545.0,
+    gravity: GravityConstants | None = None,
+) -> SatRec:
+    """Initialize a SatRec directly from orbital elements.
+
+    A user-friendly alternative to parsing a TLE string when the orbital
+    elements are already known.  Calls the internal ``sgp4init`` routine to
+    compute all derived SGP4 quantities, so the returned record is ready for
+    use with :func:`propagate`, :func:`propagate_jd`, and all GCRF/covariance
+    helpers.
+
+    Args:
+        inclo: Inclination (rad).
+        nodeo: Right ascension of ascending node (rad).
+        ecco: Eccentricity (0 ≤ e < 1).
+        argpo: Argument of perigee (rad).
+        mo: Mean anomaly at epoch (rad).
+        no_kozai: Mean motion at epoch (rad/min).
+        bstar: SGP4 drag term B* (km⁻¹).  Default 0.
+        ndot: First derivative of mean motion (rad/min²).  Default 0.
+        nddot: Second derivative of mean motion (rad/min³).  Default 0.
+        epoch_jd: Epoch as a full Julian date (e.g. 2451545.0 = J2000.0).
+            Internally split into whole + fractional parts to preserve
+            float64 precision.  Default J2000.0.
+        gravity: Gravity model constants.  Default :data:`WGS72`.
+
+    Returns:
+        Fully initialised :class:`SatRec` ready for propagation.
+
+    Example::
+
+        import sgp4jax, jax.numpy as jnp
+
+        sat = sgp4jax.satrec_from_elements(
+            inclo=0.9006,   # 51.6°
+            nodeo=1.2217,
+            ecco=0.0004,
+            argpo=4.6194,
+            mo=3.6160,
+            no_kozai=0.0672,   # ~15.5 rev/day (ISS-like)
+            bstar=2.5e-4,
+            epoch_jd=2458924.686,
+        )
+        r, v, err = sgp4jax.propagate(sat, jnp.array(60.0))
+    """
+    if gravity is None:
+        gravity = WGS72
+    jd_whole = float(int(epoch_jd))
+    jd_frac = epoch_jd - jd_whole
+    epoch = jd_whole + jd_frac - 2433281.5
+    return _sgp4init(
+        gravity, epoch,
+        bstar, ndot, nddot,
+        ecco, argpo, inclo, mo, no_kozai, nodeo,
+        jnp.array(jd_whole), jnp.array(jd_frac),
+    )
 
 
 def propagate_jd(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:

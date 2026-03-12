@@ -8,6 +8,8 @@ Core Functions
 
 .. autofunction:: sgp4jax.tles_to_satrec
 
+.. autofunction:: sgp4jax.satrec_from_elements
+
 .. autofunction:: sgp4jax.propagate
 
 .. autofunction:: sgp4jax.propagate_jd
