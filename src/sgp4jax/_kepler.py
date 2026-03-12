@@ -120,11 +120,12 @@ def _kepler_rv_teme(
     # --- Eccentric → true anomaly ---
     cosE = jnp.cos(E)
     sinE = jnp.sin(E)
-    nu = jnp.arctan2(jnp.sqrt(1.0 - ecco ** 2) * sinE, cosE - ecco)
+    ecco_sq = ecco ** 2
+    nu = jnp.arctan2(jnp.sqrt(1.0 - ecco_sq) * sinE, cosE - ecco)
 
     # --- Orbital distance and semi-latus rectum ---
     r_mag = a * (1.0 - ecco * cosE)    # km
-    p = a * (1.0 - ecco ** 2)          # km  (semi-latus rectum)
+    p = a * (1.0 - ecco_sq)            # km  (semi-latus rectum)
 
     # --- Perifocal position (km) and velocity (km/s) ---
     cos_nu = jnp.cos(nu)

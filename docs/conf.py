@@ -16,7 +16,7 @@ extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build"]
+exclude_patterns = ["_build", ".ipynb_checkpoints"]
 
 html_theme = "furo"
 

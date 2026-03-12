@@ -167,9 +167,8 @@ def sgp4(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Array, jax.A
 
     # For deep space, recompute aycof and xlcof from perturbed inclination
     aycof_d = -0.5 * satrec.j3oj2 * sinip
-    xlcof_d = jnp.where(jnp.abs(cosip + 1.0) > 1.5e-12,
-                         -0.25 * satrec.j3oj2 * sinip * (3.0 + 5.0 * cosip) / (1.0 + cosip),
-                         -0.25 * satrec.j3oj2 * sinip * (3.0 + 5.0 * cosip) / temp4)
+    xlcof_num = -0.25 * satrec.j3oj2 * sinip * (3.0 + 5.0 * cosip)
+    xlcof_d = xlcof_num / jnp.where(jnp.abs(cosip + 1.0) > 1.5e-12, 1.0 + cosip, temp4)
 
     aycof = jnp.where(is_deep, aycof_d, satrec.aycof)
     xlcof = jnp.where(is_deep, xlcof_d, satrec.xlcof)

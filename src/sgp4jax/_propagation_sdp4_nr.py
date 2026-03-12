@@ -157,9 +157,8 @@ def sgp4_sdp4_nr(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Arra
 
     # Geometry coefficients from perturbed inclination (unconditional for deep-space)
     aycof  = -0.5 * satrec.j3oj2 * sinip
-    xlcof  = jnp.where(jnp.abs(cosip + 1.0) > 1.5e-12,
-                       -0.25 * satrec.j3oj2 * sinip * (3.0 + 5.0 * cosip) / (1.0 + cosip),
-                       -0.25 * satrec.j3oj2 * sinip * (3.0 + 5.0 * cosip) / temp4)
+    xlcof_num = -0.25 * satrec.j3oj2 * sinip * (3.0 + 5.0 * cosip)
+    xlcof  = xlcof_num / jnp.where(jnp.abs(cosip + 1.0) > 1.5e-12, 1.0 + cosip, temp4)
     cosisq = cosip * cosip
     con41  = 3.0 * cosisq - 1.0
     x1mth2 = 1.0 - cosisq
