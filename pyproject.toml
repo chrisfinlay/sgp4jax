@@ -32,8 +32,9 @@ artifacts = ["src/sgp4jax/data/*.npz"]
 [tool.pytest.ini_options]
 markers = [
     "network: tests that require internet access (excluded by default)",
+    "perf: performance benchmarks (excluded by default, run with -m perf)",
 ]
-addopts = "-m 'not network'"
+addopts = "-m 'not network and not perf'"
 
 [tool.mypy]
 python_version = "3.10"
