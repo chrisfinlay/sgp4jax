@@ -69,6 +69,11 @@ Two element models are provided:
   Jacobian through the full ``sgp4init → sgp4`` pipeline; bstar's influence on
   the trajectory is captured.
 
+Empirical Covariance from TLE Age
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: sgp4jax.tle_ric_covariance
+
 Frame utilities
 ~~~~~~~~~~~~~~~
 

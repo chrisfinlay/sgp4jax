@@ -26,6 +26,7 @@ from sgp4jax._covariance import (
     elements7_jacobian,
     cov_elements7_to_teme, cov_teme_to_elements7,
     cov_elements7_to_ric, cov_ric_to_elements7,
+    tle_ric_covariance,
 )
 
 __all__ = [
@@ -52,6 +53,7 @@ __all__ = [
     "elements7_jacobian",
     "cov_elements7_to_teme", "cov_teme_to_elements7",
     "cov_elements7_to_ric", "cov_ric_to_elements7",
+    "tle_ric_covariance",
 ]
 
 
