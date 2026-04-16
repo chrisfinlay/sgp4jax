@@ -27,14 +27,22 @@ def sgp4_leo(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Array, j
     mean motion < ~6.4 rev/day). Results will be incorrect for GEO/HEO/MEO
     objects because the deep-space secular and periodic corrections are skipped.
 
-    Args:
-        satrec: Initialized SatRec (near-earth only; deep-space fields ignored)
-        tsince: Time since epoch in minutes (scalar jnp.ndarray)
+    Parameters
+    ----------
+    satrec : SatRec
+        Initialized SatRec from :func:`~sgp4jax.tle_to_satrec`.
+        Deep-space fields are ignored.
+    tsince : array-like
+        Time since epoch in minutes (scalar).
 
-    Returns:
-        r: position vector (3,) in km (TEME frame)
-        v: velocity vector (3,) in km/s (TEME frame)
-        error: error code (0 = success)
+    Returns
+    -------
+    r : jax.Array, shape (3,)
+        Position in TEME frame, km.
+    v : jax.Array, shape (3,)
+        Velocity in TEME frame, km/s.
+    error : jax.Array
+        Error code (0 = success).
     """
     temp4 = 1.5e-12
     x2o3 = 2.0 / 3.0

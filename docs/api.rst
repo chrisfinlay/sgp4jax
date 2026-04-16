@@ -74,6 +74,8 @@ Empirical Covariance from TLE Age
 
 .. autofunction:: sgp4jax.tle_ric_covariance
 
+.. autofunction:: sgp4jax.tle_bstar_sigma
+
 Frame utilities
 ~~~~~~~~~~~~~~~
 

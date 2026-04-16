@@ -673,15 +673,23 @@ def teme_to_gcrf(
     The input Julian date ``jd + fr`` is treated as UT1 time (≈UTC).
     TT and TDB are derived internally using an approximate delta_T model.
 
-    Args:
-        r_teme: Position in TEME frame (3,) in km.
-        v_teme: Velocity in TEME frame (3,) in km/s.
-        jd: Julian date, integer/whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    r_teme : array-like, shape (3,)
+        Position in TEME frame, km.
+    v_teme : array-like, shape (3,)
+        Velocity in TEME frame, km/s.
+    jd : array-like
+        Julian date, integer/whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        r_gcrf: Position in GCRF frame (3,) in km.
-        v_gcrf: Velocity in GCRF frame (3,) in km/s.
+    Returns
+    -------
+    r_gcrf : jax.Array, shape (3,)
+        Position in GCRF frame, km.
+    v_gcrf : jax.Array, shape (3,)
+        Velocity in GCRF frame, km/s.
     """
     M, gast_rad = _earth_orientation(jd, fr)
     theta, _ = _theta_gmst1982(jd, fr)
@@ -711,13 +719,19 @@ def itrf_to_gcrf(
 
     The input Julian date ``jd + fr`` is treated as UT1 (≈UTC).
 
-    Args:
-        r_itrf: Position in ITRF frame (3,) in km.
-        jd: Julian date (UT1), integer/whole part (scalar).
-        fr: Julian date (UT1), fractional part (scalar).
+    Parameters
+    ----------
+    r_itrf : array-like, shape (3,)
+        Position in ITRF frame, km.
+    jd : array-like
+        Julian date (UT1), integer/whole part (scalar).
+    fr : array-like
+        Julian date (UT1), fractional part (scalar).
 
-    Returns:
-        r_gcrf: Position in GCRF frame (3,) in km.
+    Returns
+    -------
+    r_gcrf : jax.Array, shape (3,)
+        Position in GCRF frame, km.
     """
     M, gast_rad = _earth_orientation(jd, fr)
     R = M.T @ _rot_z(gast_rad)
@@ -738,13 +752,19 @@ def gcrf_to_itrf(
 
     The input Julian date ``jd + fr`` is treated as UT1 (≈UTC).
 
-    Args:
-        r_gcrf: Position in GCRF frame (3,) in km.
-        jd: Julian date (UT1), integer/whole part (scalar).
-        fr: Julian date (UT1), fractional part (scalar).
+    Parameters
+    ----------
+    r_gcrf : array-like, shape (3,)
+        Position in GCRF frame, km.
+    jd : array-like
+        Julian date (UT1), integer/whole part (scalar).
+    fr : array-like
+        Julian date (UT1), fractional part (scalar).
 
-    Returns:
-        r_itrf: Position in ITRF frame (3,) in km.
+    Returns
+    -------
+    r_itrf : jax.Array, shape (3,)
+        Position in ITRF frame, km.
     """
     M, gast_rad = _earth_orientation(jd, fr)
     R = _rot_z(-gast_rad) @ M

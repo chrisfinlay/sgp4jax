@@ -44,7 +44,18 @@ def jday(year: int, mon: int, day: int, hr: int, minute: int, sec: float) -> tup
 def parse_tle(line1: str, line2: str) -> dict[str, Any]:
     """Parse two TLE lines into a dict of orbital elements.
 
-    Returns dict with keys matching sgp4init parameters.
+    Parameters
+    ----------
+    line1 : str
+        First TLE line.
+    line2 : str
+        Second TLE line.
+
+    Returns
+    -------
+    dict
+        Keys match ``sgp4init`` parameter names; values are in SI/radian
+        units ready for :func:`sgp4init`.
     """
     deg2rad = pi / 180.0
     xpdotp = 1440.0 / (2.0 * pi)
@@ -120,13 +131,19 @@ def parse_tle(line1: str, line2: str) -> dict[str, Any]:
 def tle_to_satrec(line1: str, line2: str, gravity: GravityConstants | None = None) -> SatRec:
     """Parse TLE and initialize a SatRec ready for propagation.
 
-    Args:
-        line1: First TLE line
-        line2: Second TLE line
-        gravity: Gravity constants (default WGS72)
+    Parameters
+    ----------
+    line1 : str
+        First TLE line.
+    line2 : str
+        Second TLE line.
+    gravity : GravityConstants, optional
+        Gravity constants.  Default WGS72.
 
-    Returns:
-        SatRec NamedTuple
+    Returns
+    -------
+    SatRec
+        Initialized satellite record ready for propagation.
     """
     if gravity is None:
         gravity = WGS72

@@ -7,17 +7,24 @@ from typing import NamedTuple
 class GravityConstants(NamedTuple):
     """Earth gravity model constants for use with SGP4.
 
-    ``tumin``
+    Attributes
+    ----------
+    tumin : float
         Minutes per canonical time unit (= 1 / xke).
-    ``mu``
-        Gravitational parameter (km³/s²).
-    ``radiusearthkm``
-        Earth equatorial radius (km).
-    ``xke``
-        Square root of gravitational parameter in canonical units (ER^1.5/min).
-    ``j2``, ``j3``, ``j4``
-        Zonal harmonics (dimensionless).
-    ``j3oj2``
+    mu : float
+        Gravitational parameter, km³/s².
+    radiusearthkm : float
+        Earth equatorial radius, km.
+    xke : float
+        Square root of gravitational parameter in canonical units
+        (ER^1.5/min).
+    j2 : float
+        Zonal harmonic J2 (dimensionless).
+    j3 : float
+        Zonal harmonic J3 (dimensionless).
+    j4 : float
+        Zonal harmonic J4 (dimensionless).
+    j3oj2 : float
         Ratio j3 / j2 (precomputed for efficiency).
     """
 

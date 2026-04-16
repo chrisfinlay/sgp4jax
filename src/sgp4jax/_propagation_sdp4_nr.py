@@ -42,14 +42,22 @@ def sgp4_sdp4_nr(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Arra
         irez=1 (GEO/synchronous), or irez=2 (Molniya/12h resonant)
         satellites — resonance and drag terms will be missing or zero.
 
-    Args:
-        satrec: Initialized SatRec (deep-space, irez=0 only)
-        tsince: Time since epoch in minutes (scalar jnp.ndarray)
+    Parameters
+    ----------
+    satrec : SatRec
+        Initialized SatRec from :func:`~sgp4jax.tle_to_satrec`.
+        Deep-space, ``irez=0`` only.
+    tsince : array-like
+        Time since epoch in minutes (scalar).
 
-    Returns:
-        r: position vector (3,) in km (TEME frame)
-        v: velocity vector (3,) in km/s (TEME frame)
-        error: error code (0 = success)
+    Returns
+    -------
+    r : jax.Array, shape (3,)
+        Position in TEME frame, km.
+    v : jax.Array, shape (3,)
+        Velocity in TEME frame, km/s.
+    error : jax.Array
+        Error code (0 = success).
     """
     temp4 = 1.5e-12
     x2o3 = 2.0 / 3.0

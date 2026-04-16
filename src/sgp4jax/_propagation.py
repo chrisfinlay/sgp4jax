@@ -20,14 +20,21 @@ def _fmod_python(x: jax.typing.ArrayLike, y: jax.typing.ArrayLike) -> jax.Array:
 def sgp4(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Array, jax.Array, jax.Array]:
     """Propagate satellite to time tsince (minutes from epoch).
 
-    Args:
-        satrec: Initialized SatRec
-        tsince: Time since epoch in minutes (scalar jnp.ndarray)
+    Parameters
+    ----------
+    satrec : SatRec
+        Initialized SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    tsince : array-like
+        Time since epoch in minutes (scalar).
 
-    Returns:
-        r: position vector (3,) in km (TEME frame)
-        v: velocity vector (3,) in km/s (TEME frame)
-        error: error code (0 = success)
+    Returns
+    -------
+    r : jax.Array, shape (3,)
+        Position in TEME frame, km.
+    v : jax.Array, shape (3,)
+        Velocity in TEME frame, km/s.
+    error : jax.Array
+        Error code (0 = success).
     """
     temp4 = 1.5e-12
     x2o3 = 2.0 / 3.0

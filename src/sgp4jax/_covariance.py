@@ -64,12 +64,17 @@ def ric_rotation(
     So a position expressed in RIC coordinates transforms to Cartesian as
     ``x_cart = T @ x_ric``.
 
-    Args:
-        r: Position vector in TEME, shape ``(3,)``, km.
-        v: Velocity vector in TEME, shape ``(3,)``, km/s.
+    Parameters
+    ----------
+    r : jax.Array, shape (3,)
+        Position vector in TEME, km.
+    v : jax.Array, shape (3,)
+        Velocity vector in TEME, km/s.
 
-    Returns:
-        T: Rotation matrix, shape ``(3, 3)``.
+    Returns
+    -------
+    T : jax.Array, shape (3, 3)
+        Rotation matrix.
     """
     r_hat = r / jnp.linalg.norm(r)
     h = jnp.cross(r, v)
@@ -92,15 +97,20 @@ def cov_ric_to_teme(
 ) -> jax.Array:
     """Transform a 6×6 state covariance from the RIC frame to TEME Cartesian.
 
-    Args:
-        cov_ric: Covariance matrix in RIC frame, shape ``(6, 6)``.  Block
-            structure: ``[[Σ_pos, Σ_pv], [Σ_vp, Σ_vel]]`` where each block
-            is ``(3, 3)``.
-        r: Position in TEME at the epoch of the covariance, shape ``(3,)``, km.
-        v: Velocity in TEME at the epoch of the covariance, shape ``(3,)``, km/s.
+    Parameters
+    ----------
+    cov_ric : array-like, shape (6, 6)
+        Covariance matrix in RIC frame.  Block structure:
+        ``[[Σ_pos, Σ_pv], [Σ_vp, Σ_vel]]`` where each block is ``(3, 3)``.
+    r : jax.Array, shape (3,)
+        Position in TEME at the epoch of the covariance, km.
+    v : jax.Array, shape (3,)
+        Velocity in TEME at the epoch of the covariance, km/s.
 
-    Returns:
-        Covariance in TEME frame, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in TEME frame.
     """
     T6 = _ric_rotation_6(r, v)
     return T6 @ jnp.asarray(cov_ric) @ T6.T
@@ -113,13 +123,19 @@ def cov_teme_to_ric(
 ) -> jax.Array:
     """Transform a 6×6 TEME Cartesian covariance to the RIC frame.
 
-    Args:
-        cov_teme: Covariance matrix in TEME, shape ``(6, 6)``.
-        r: Position in TEME at the epoch of the covariance, shape ``(3,)``, km.
-        v: Velocity in TEME at the epoch of the covariance, shape ``(3,)``, km/s.
+    Parameters
+    ----------
+    cov_teme : array-like, shape (6, 6)
+        Covariance matrix in TEME.
+    r : jax.Array, shape (3,)
+        Position in TEME at the epoch of the covariance, km.
+    v : jax.Array, shape (3,)
+        Velocity in TEME at the epoch of the covariance, km/s.
 
-    Returns:
-        Covariance in RIC frame, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in RIC frame.
     """
     T6 = _ric_rotation_6(r, v)
     return T6.T @ jnp.asarray(cov_teme) @ T6
@@ -156,13 +172,19 @@ def elements_jacobian(
     Computes  J = ∂(r, v) / ∂(inclo, nodeo, ecco, argpo, mo, no_kozai)
     evaluated at the given Julian date using the pure two-body Keplerian map.
 
-    Args:
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        J: Jacobian matrix, shape ``(6, 6)``.  Rows correspond to
+    Returns
+    -------
+    J : jax.Array, shape (6, 6)
+        Jacobian matrix.  Rows correspond to
         ``(r_x, r_y, r_z, v_x, v_y, v_z)``; columns to
         ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
     """
@@ -192,14 +214,21 @@ def cov_elements_to_teme(
     Uses the linear propagation rule  Σ_rv = J Σ_el J^T  where J is the
     Keplerian Jacobian ∂(r,v)/∂(elements) at the given time.
 
-    Args:
-        cov_elements: Covariance in element space, shape ``(6, 6)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_elements : array-like, shape (6, 6)
+        Covariance in element space.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in TEME Cartesian frame, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in TEME Cartesian frame.
     """
     J = elements_jacobian(satrec, jd, fr)
     return J @ jnp.asarray(cov_elements) @ J.T
@@ -217,14 +246,21 @@ def cov_teme_to_elements(
 
     Inverts the Keplerian Jacobian:  Σ_el = J⁻¹ Σ_rv J⁻ᵀ.
 
-    Args:
-        cov_teme: Covariance in TEME Cartesian frame, shape ``(6, 6)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_teme : array-like, shape (6, 6)
+        Covariance in TEME Cartesian frame.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in element space, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in element space.
         Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
     """
     J = elements_jacobian(satrec, jd, fr)
@@ -249,14 +285,22 @@ def cov_ric_to_elements(
 
     Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
 
-    Args:
-        cov_ric: Covariance in RIC frame, shape ``(6, 6)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_ric : array-like, shape (6, 6)
+        Covariance in RIC frame.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in element space, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in element space.
+        Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
     """
     r_teme, v_teme = _kepler_rv_teme(
         satrec.inclo, satrec.nodeo, satrec.ecco,
@@ -279,14 +323,22 @@ def cov_elements_to_ric(
 
     Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
 
-    Args:
-        cov_elements: Covariance in element space, shape ``(6, 6)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_elements : array-like, shape (6, 6)
+        Covariance in element space.
+        Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in RIC frame, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in RIC frame.
     """
     r_teme, v_teme = _kepler_rv_teme(
         satrec.inclo, satrec.nodeo, satrec.ecco,
@@ -338,13 +390,19 @@ def elements7_jacobian(
     Unlike the 6-element :func:`elements_jacobian`, this captures bstar's
     influence on the trajectory via the drag terms in SGP4.
 
-    Args:
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        J: Jacobian matrix, shape ``(6, 7)``.  Rows correspond to
+    Returns
+    -------
+    J : jax.Array, shape (6, 7)
+        Jacobian matrix.  Rows correspond to
         ``(r_x, r_y, r_z, v_x, v_y, v_z)``; columns to
         ``(inclo, nodeo, ecco, argpo, mo, no_kozai, bstar)``.
     """
@@ -370,14 +428,21 @@ def cov_elements7_to_teme(
     Uses the linear propagation rule  Σ_rv = J Σ_el7 Jᵀ  where J is the
     SGP4 Jacobian ∂(r,v)/∂(elements7), shape ``(6, 7)``.
 
-    Args:
-        cov_elements7: Covariance in 7-element space, shape ``(7, 7)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_elements7 : array-like, shape (7, 7)
+        Covariance in 7-element space.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in TEME Cartesian frame, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in TEME Cartesian frame.
     """
     J = elements7_jacobian(satrec, jd, fr)  # (6, 7)
     return J @ jnp.asarray(cov_elements7) @ J.T
@@ -402,14 +467,21 @@ def cov_teme_to_elements7(
         is only weakly observable from a single-epoch state snapshot.
         For a full bstar estimate, propagate and fit over multiple epochs.
 
-    Args:
-        cov_teme: Covariance in TEME Cartesian frame, shape ``(6, 6)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_teme : array-like, shape (6, 6)
+        Covariance in TEME Cartesian frame.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in 7-element space, shape ``(7, 7)``.  Rank ≤ 6.
+    Returns
+    -------
+    jax.Array, shape (7, 7)
+        Covariance in 7-element space.  Rank ≤ 6.
     """
     J = elements7_jacobian(satrec, jd, fr)  # (6, 7)
     # Right pseudo-inverse: J† = Jᵀ (J Jᵀ)⁻¹,  shape (7, 6)
@@ -431,14 +503,21 @@ def cov_elements7_to_ric(
 
     Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai, bstar)``.
 
-    Args:
-        cov_elements7: Covariance in 7-element space, shape ``(7, 7)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_elements7 : array-like, shape (7, 7)
+        Covariance in 7-element space.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in RIC frame, shape ``(6, 6)``.
+    Returns
+    -------
+    jax.Array, shape (6, 6)
+        Covariance in RIC frame.
     """
     r_teme, v_teme, _ = _sgp4(satrec, (jd - satrec.jdsatepoch + fr - satrec.jdsatepochF) * 1440.0)
     cov_teme = cov_elements7_to_teme(cov_elements7, satrec, jd, fr)
@@ -462,14 +541,21 @@ def cov_ric_to_elements7(
         The result is **rank-deficient** (rank ≤ 6).  See
         :func:`cov_teme_to_elements7` for details.
 
-    Args:
-        cov_ric: Covariance in RIC frame, shape ``(6, 6)``.
-        satrec: Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    cov_ric : array-like, shape (6, 6)
+        Covariance in RIC frame.
+    satrec : SatRec
+        Scalar SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        Covariance in 7-element space, shape ``(7, 7)``.  Rank ≤ 6.
+    Returns
+    -------
+    jax.Array, shape (7, 7)
+        Covariance in 7-element space.  Rank ≤ 6.
     """
     r_teme, v_teme, _ = _sgp4(satrec, (jd - satrec.jdsatepoch + fr - satrec.jdsatepochF) * 1440.0)
     cov_teme = cov_ric_to_teme(cov_ric, r_teme, v_teme)
@@ -537,21 +623,28 @@ def tle_ric_covariance(
         When a CDM covariance is available from space-track it should
         be preferred over this estimate.
 
-    Args:
-        satrec: Initialized SatRec from :func:`~sgp4jax.tle_to_satrec`.
-        jd: Target Julian date, whole part (scalar).
-        fr: Target Julian date, fractional part (scalar).
-        sigma_r0: 1-σ radial position uncertainty at TLE epoch (km).
-            Default 50 m, reflecting typical OD residuals.
-        sigma_t0: 1-σ in-track position uncertainty at TLE epoch (km).
-            Default 300 m.
-        sigma_n0: 1-σ cross-track position uncertainty at TLE epoch (km).
-            Default 50 m.
+    Parameters
+    ----------
+    satrec : SatRec
+        Initialized SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Target Julian date, whole part (scalar).
+    fr : array-like
+        Target Julian date, fractional part (scalar).
+    sigma_r0 : float, optional
+        1-σ radial position uncertainty at TLE epoch, km.
+        Default 0.050 (50 m), reflecting typical OD residuals.
+    sigma_t0 : float, optional
+        1-σ in-track position uncertainty at TLE epoch, km.  Default 0.300.
+    sigma_n0 : float, optional
+        1-σ cross-track position uncertainty at TLE epoch, km.  Default 0.050.
 
-    Returns:
-        cov_ric: ``(6, 6)`` covariance matrix in the RIC frame, block
-        ordered ``[R, T, N, Ṙ, Ṫ, Ṅ]``.  Units: km² (position block),
-        km²/s² (velocity block), cross-terms zero.
+    Returns
+    -------
+    cov_ric : jax.Array, shape (6, 6)
+        Covariance matrix in the RIC frame, block ordered
+        ``[R, T, N, Ṙ, Ṫ, Ṅ]``.  Units: km² (position block),
+        km²/s² (velocity block).  Cross-terms are zero.
     """
     # --- Time since TLE epoch (days), symmetric about epoch ---
     dt_days = jnp.abs(
@@ -589,3 +682,82 @@ def tle_ric_covariance(
         sr_dot ** 2, st_dot ** 2, sn_dot ** 2,
     ])
     return jnp.diag(variances)
+
+
+def tle_bstar_sigma(
+    satrec: SatRec,
+    jd: jax.typing.ArrayLike,
+    fr: jax.typing.ArrayLike,
+    *,
+    bstar_frac0: float = 0.30,
+    bstar_floor: float = 1e-5,
+    bstar_growth_per_day: float = 0.10,
+) -> jax.Array:
+    """Empirical 1-σ uncertainty on ``bstar`` based on TLE age.
+
+    ``bstar`` is estimated by fitting TLE residuals to tracking data.  Its
+    uncertainty has two components:
+
+    1. **Epoch uncertainty** — from OD fit residuals and short-term
+       atmospheric variability (~10 % diurnal cycle).  Modelled as a
+       fraction of the fitted |bstar| value with a minimum floor for
+       low-drag objects.
+
+    2. **Age growth** — atmospheric density varies with solar activity
+       (F10.7 index, 27-day solar-rotation cycle, solar-cycle envelope).
+       A TLE's fitted bstar does not track these changes, so uncertainty
+       grows at roughly 10 % of |bstar| per day.  By 7 days the bstar
+       estimate is effectively unconstrained; by 3 days it has roughly
+       doubled from its epoch value.
+
+    **Model (units: km⁻¹):**
+
+    .. code-block:: text
+
+        σ_bstar₀  = max(bstar_frac0 · |bstar|, bstar_floor)
+        σ_bstar(Δt) = σ_bstar₀ + bstar_growth_per_day · |bstar| · |Δt|
+
+    Typical values at median LEO ``bstar`` (3.6×10⁻⁴ km⁻¹):
+
+    * Fresh TLE (Δt = 0):  1.1×10⁻⁴ km⁻¹  (≈ 30 %)
+    * 3 days old:           2.2×10⁻⁴ km⁻¹  (≈ 60 %)
+    * 7 days old:           3.6×10⁻⁴ km⁻¹  (≈ 100 %)
+
+    This σ is suitable as the standard deviation of a Gaussian or
+    half-normal prior on bstar in Bayesian TLE fitting.  For a
+    log-normal prior on |bstar|, use this value divided by |bstar| as
+    the log-scale σ.
+
+    Parameters
+    ----------
+    satrec : SatRec
+        Initialized SatRec from :func:`~sgp4jax.tle_to_satrec`.
+    jd : array-like
+        Target Julian date, whole part (scalar).
+    fr : array-like
+        Target Julian date, fractional part (scalar).
+    bstar_frac0 : float, optional
+        Fractional uncertainty in bstar at TLE epoch.  Default 0.30 (30 %).
+    bstar_floor : float, optional
+        Minimum 1-σ at epoch, km⁻¹.  Prevents near-zero bstar from
+        producing an unrealistically tight prior.  Default 1×10⁻⁵ km⁻¹.
+    bstar_growth_per_day : float, optional
+        Fractional growth in bstar uncertainty per day, relative to
+        ``|bstar|``.  Default 0.10 (10 %/day), reflecting typical
+        atmospheric-density variability from solar activity.
+
+    Returns
+    -------
+    sigma_bstar : jax.Array
+        Scalar 1-σ uncertainty on ``bstar``, km⁻¹.
+    """
+    dt_days = jnp.abs(
+        jd - satrec.jdsatepoch + fr - satrec.jdsatepochF
+    )
+    abs_bstar = jnp.abs(satrec.bstar)
+
+    # Epoch uncertainty: fraction of |bstar|, floored for low-drag sats
+    sigma0 = jnp.maximum(bstar_frac0 * abs_bstar, jnp.asarray(bstar_floor))
+
+    # Age-driven growth: atmospheric density variability
+    return sigma0 + bstar_growth_per_day * abs_bstar * dt_days

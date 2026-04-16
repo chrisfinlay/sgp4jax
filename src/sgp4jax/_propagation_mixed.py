@@ -84,13 +84,19 @@ def gcrf_positions_mixed(
         Like :func:`propagate_mixed`, this function is **not** JIT-compilable
         as a whole.
 
-    Args:
-        satrec_batch: Batched SatRec from :func:`tles_to_satrec`, ``N`` satellites.
-        times_jd: 1-D array of UTC Julian dates, shape ``(M,)``.
+    Parameters
+    ----------
+    satrec_batch : SatRec
+        Batched SatRec from :func:`tles_to_satrec`, ``N`` satellites.
+    times_jd : array-like, shape (M,)
+        1-D array of UTC Julian dates.
 
-    Returns:
-        r_gcrf: Positions in GCRF frame, shape ``(N, M, 3)`` in km.
-        v_gcrf: Velocities in GCRF frame, shape ``(N, M, 3)`` in km/s.
+    Returns
+    -------
+    r_gcrf : jax.Array, shape (N, M, 3)
+        Positions in GCRF frame, km.
+    v_gcrf : jax.Array, shape (N, M, 3)
+        Velocities in GCRF frame, km/s.
     """
     times_jd = jnp.asarray(times_jd)
     jd_arr   = jnp.floor(times_jd)
@@ -138,14 +144,21 @@ def propagate_mixed(
         group satellites by type and call the specialized propagators directly
         (:func:`propagate_leo`, :func:`propagate_sdp4_nr`, :func:`propagate`).
 
-    Args:
-        satrec_batch: Batched SatRec from :func:`tles_to_satrec`, ``N`` satellites.
-        times: 1-D array of times since epoch in minutes, shape ``(M,)``.
+    Parameters
+    ----------
+    satrec_batch : SatRec
+        Batched SatRec from :func:`tles_to_satrec`, ``N`` satellites.
+    times : array-like, shape (M,)
+        1-D array of times since epoch in minutes.
 
-    Returns:
-        r:     Positions in TEME frame, shape ``(N, M, 3)`` in km.
-        v:     Velocities in TEME frame, shape ``(N, M, 3)`` in km/s.
-        error: Error codes, shape ``(N, M)``  (0 = success).
+    Returns
+    -------
+    r : jax.Array, shape (N, M, 3)
+        Positions in TEME frame, km.
+    v : jax.Array, shape (N, M, 3)
+        Velocities in TEME frame, km/s.
+    error : jax.Array, shape (N, M)
+        Error codes (0 = success).
     """
     times  = jnp.asarray(times)
     n_sats  = int(satrec_batch.method.shape[0])

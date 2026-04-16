@@ -50,12 +50,18 @@ def _solve_kepler(
     fewer than 10 iterations for *e* < 0.99 and fewer than 20 for
     *e* < 0.9999, covering all TLE eccentricities.
 
-    Args:
-        M: Mean anomaly in radians.  May be outside [0, 2π].
-        ecco: Eccentricity  0 ≤ e < 1.
-        n_iter: Number of Newton-Raphson iterations (default 20).
+    Parameters
+    ----------
+    M : array-like
+        Mean anomaly in radians.  May be outside [0, 2π].
+    ecco : array-like
+        Eccentricity, 0 ≤ e < 1.
+    n_iter : int, optional
+        Number of Newton-Raphson iterations.  Default 20.
 
-    Returns:
+    Returns
+    -------
+    jax.Array
         Eccentric anomaly E in radians.
     """
     def step(E: jax.Array, _: None) -> tuple[jax.Array, None]:
@@ -88,22 +94,37 @@ def _kepler_rv_teme(
     and velocity in perifocal (PQW) coordinates, then rotates to the TEME
     frame using the Euler sequence R_z(Ω) R_x(i) R_z(ω).
 
-    Args:
-        inclo: Inclination (rad).
-        nodeo: Right ascension of ascending node (rad).
-        ecco: Eccentricity.
-        argpo: Argument of perigee (rad).
-        mo: Mean anomaly at epoch (rad).
-        no_kozai: Mean motion at epoch (rad/min).
-        mu: Gravitational parameter (km³/s²).
-        jdsatepoch: TLE epoch Julian date, whole part.
-        jdsatepochF: TLE epoch Julian date, fractional part.
-        jd: Target Julian date, whole part.
-        fr: Target Julian date, fractional part.
+    Parameters
+    ----------
+    inclo : array-like
+        Inclination, rad.
+    nodeo : array-like
+        Right ascension of ascending node, rad.
+    ecco : array-like
+        Eccentricity.
+    argpo : array-like
+        Argument of perigee, rad.
+    mo : array-like
+        Mean anomaly at epoch, rad.
+    no_kozai : array-like
+        Mean motion at epoch, rad/min.
+    mu : array-like
+        Gravitational parameter, km³/s².
+    jdsatepoch : array-like
+        TLE epoch Julian date, whole part.
+    jdsatepochF : array-like
+        TLE epoch Julian date, fractional part.
+    jd : array-like
+        Target Julian date, whole part.
+    fr : array-like
+        Target Julian date, fractional part.
 
-    Returns:
-        r_teme: Position in TEME frame, shape ``(3,)``, in km.
-        v_teme: Velocity in TEME frame, shape ``(3,)``, in km/s.
+    Returns
+    -------
+    r_teme : jax.Array, shape (3,)
+        Position in TEME frame, km.
+    v_teme : jax.Array, shape (3,)
+        Velocity in TEME frame, km/s.
     """
     # --- Time since TLE epoch (minutes) ---
     tsince = (jd - jdsatepoch + fr - jdsatepochF) * 1440.0  # type: ignore[operator]
@@ -163,14 +184,21 @@ def _kepler_jd_gcrf(
     that reads the required fields from *satrec*.  Designed for use inside
     ``jax.vmap``.
 
-    Args:
-        satrec: Scalar SatRec from :func:`tle_to_satrec`.
-        jd: Julian date, whole part (scalar).
-        fr: Julian date, fractional part (scalar).
+    Parameters
+    ----------
+    satrec : SatRec
+        Scalar SatRec from :func:`tle_to_satrec`.
+    jd : array-like
+        Julian date, whole part (scalar).
+    fr : array-like
+        Julian date, fractional part (scalar).
 
-    Returns:
-        r_gcrf: GCRF position ``(3,)`` in km.
-        v_gcrf: GCRF velocity ``(3,)`` in km/s.
+    Returns
+    -------
+    r_gcrf : jax.Array, shape (3,)
+        GCRF position, km.
+    v_gcrf : jax.Array, shape (3,)
+        GCRF velocity, km/s.
     """
     r_teme, v_teme = _kepler_rv_teme(
         satrec.inclo, satrec.nodeo, satrec.ecco, satrec.argpo,
@@ -198,18 +226,25 @@ def kepler_gcrf_positions(
     The function is JIT-compiled and differentiable with respect to all
     fields of *satrec* and with respect to *times_jd*.
 
-    Args:
-        satrec: Scalar SatRec from :func:`tle_to_satrec`.
-        times_jd: 1-D array of UTC Julian dates, shape ``(n_times,)``.
+    Parameters
+    ----------
+    satrec : SatRec
+        Scalar SatRec from :func:`tle_to_satrec`.
+    times_jd : array-like, shape (n_times,)
+        1-D array of UTC Julian dates.
 
-    Returns:
-        r_gcrf: GCRF positions, shape ``(n_times, 3)``, in km.
-        v_gcrf: GCRF velocities, shape ``(n_times, 3)``, in km/s.
+    Returns
+    -------
+    r_gcrf : jax.Array, shape (n_times, 3)
+        GCRF positions, km.
+    v_gcrf : jax.Array, shape (n_times, 3)
+        GCRF velocities, km/s.
 
-    Note:
-        The TEME → GCRF rotation uses the input Julian dates as UT1
-        (UTC is an approximation accurate to < 1 s).  For sub-arcsecond
-        frame accuracy call :func:`utc_to_ut1` first and pass the UT1 dates.
+    Notes
+    -----
+    The TEME → GCRF rotation uses the input Julian dates as UT1 (UTC is an
+    approximation accurate to < 1 s).  For sub-arcsecond frame accuracy call
+    :func:`utc_to_ut1` first and pass the UT1 dates.
     """
     times_jd = jnp.asarray(times_jd)
     jd_arr = jnp.floor(times_jd)
@@ -230,19 +265,26 @@ def kepler_gcrf_positions_multi(
     The function is JIT-compiled and differentiable with respect to all
     fields of *satrec* and with respect to *times_jd*.
 
-    Args:
-        satrec: Batched SatRec from :func:`tles_to_satrec` with leading
-            dimension ``n_sat``.
-        times_jd: 1-D array of UTC Julian dates, shape ``(n_times,)``.
+    Parameters
+    ----------
+    satrec : SatRec
+        Batched SatRec from :func:`tles_to_satrec` with leading dimension
+        ``n_sat``.
+    times_jd : array-like, shape (n_times,)
+        1-D array of UTC Julian dates.
 
-    Returns:
-        r_gcrf: GCRF positions, shape ``(n_sat, n_times, 3)``, in km.
-        v_gcrf: GCRF velocities, shape ``(n_sat, n_times, 3)``, in km/s.
+    Returns
+    -------
+    r_gcrf : jax.Array, shape (n_sat, n_times, 3)
+        GCRF positions, km.
+    v_gcrf : jax.Array, shape (n_sat, n_times, 3)
+        GCRF velocities, km/s.
 
-    Note:
-        The TEME → GCRF rotation uses the input Julian dates as UT1
-        (UTC is an approximation accurate to < 1 s).  For sub-arcsecond
-        frame accuracy call :func:`utc_to_ut1` first and pass the UT1 dates.
+    Notes
+    -----
+    The TEME → GCRF rotation uses the input Julian dates as UT1 (UTC is an
+    approximation accurate to < 1 s).  For sub-arcsecond frame accuracy call
+    :func:`utc_to_ut1` first and pass the UT1 dates.
     """
     times_jd = jnp.asarray(times_jd)
     jd_arr = jnp.floor(times_jd)

@@ -121,10 +121,13 @@ def update_iers_table(
     and immediately loads the result into the module-level interpolation
     table used by :func:`utc_to_ut1`.
 
-    Args:
-        cache_path: Destination for the ``.npz`` cache (default:
-            ``~/.cache/sgp4jax/finals2000A.npz``).
-        url: Override the download URL.
+    Parameters
+    ----------
+    cache_path : str or Path, optional
+        Destination for the ``.npz`` cache.  Default:
+        ``~/.cache/sgp4jax/finals2000A.npz``.
+    url : str, optional
+        Override the download URL.
     """
     global _mjd, _dut1
 
@@ -158,13 +161,16 @@ def load_iers_table(
     Re-call with an explicit *cache_path* to load from a non-default
     location or to reload after :func:`update_iers_table`.
 
-    Args:
-        cache_path: Path to the ``.npz`` cache file (default:
-            ``~/.cache/sgp4jax/finals2000A.npz``).
+    Parameters
+    ----------
+    cache_path : str or Path, optional
+        Path to the ``.npz`` cache file.  Default:
+        ``~/.cache/sgp4jax/finals2000A.npz``.
 
-    Raises:
-        FileNotFoundError: Cache file not found.  Call
-            :func:`update_iers_table` to download it.
+    Raises
+    ------
+    FileNotFoundError
+        Cache file not found.  Call :func:`update_iers_table` to download it.
     """
     global _mjd, _dut1
 
@@ -198,17 +204,25 @@ def utc_to_ut1(
     The function is JAX-traceable and works inside ``jax.jit`` and
     ``jax.vmap`` after the table has been loaded.
 
-    Args:
-        jd_utc: UTC Julian date, integer/whole part.
-        fr_utc: UTC Julian date, fractional part.
+    Parameters
+    ----------
+    jd_utc : array-like
+        UTC Julian date, integer/whole part.
+    fr_utc : array-like
+        UTC Julian date, fractional part.
 
-    Returns:
-        jd_ut1: UT1 Julian date, whole part (same value as ``jd_utc``).
-        fr_ut1: UT1 Julian date, fractional part.
+    Returns
+    -------
+    jd_ut1 : jax.Array
+        UT1 Julian date, whole part (same value as ``jd_utc``).
+    fr_ut1 : jax.Array
+        UT1 Julian date, fractional part.
 
-    Raises:
-        RuntimeError: IERS table not loaded — call
-            :func:`update_iers_table` or :func:`load_iers_table` first.
+    Raises
+    ------
+    RuntimeError
+        IERS table not loaded — call :func:`update_iers_table` or
+        :func:`load_iers_table` first.
     """
     if _mjd is None or _dut1 is None:
         raise RuntimeError(
