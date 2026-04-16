@@ -42,6 +42,8 @@ class GravityConstants(NamedTuple):
 _mu = 398600.79964
 _re = 6378.135
 _xke = 0.0743669161
+#: WGS-72 "old" Earth gravity constants (Vallado original).
+#: See :class:`GravityConstants` for field descriptions.
 WGS72OLD = GravityConstants(
     tumin=1.0 / _xke,
     mu=_mu,
@@ -57,6 +59,8 @@ WGS72OLD = GravityConstants(
 _mu = 398600.8
 _re = 6378.135
 _xke = 60.0 / sqrt(_re * _re * _re / _mu)
+#: WGS-72 Earth gravity constants (default for SGP4).
+#: See :class:`GravityConstants` for field descriptions.
 WGS72 = GravityConstants(
     tumin=1.0 / _xke,
     mu=_mu,
@@ -72,6 +76,8 @@ WGS72 = GravityConstants(
 _mu = 398600.5
 _re = 6378.137
 _xke = 60.0 / sqrt(_re * _re * _re / _mu)
+#: WGS-84 Earth gravity constants.
+#: See :class:`GravityConstants` for field descriptions.
 WGS84 = GravityConstants(
     tumin=1.0 / _xke,
     mu=_mu,

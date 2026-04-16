@@ -700,13 +700,13 @@ def tle_bstar_sigma(
 
     1. **Epoch uncertainty** — from OD fit residuals and short-term
        atmospheric variability (~10 % diurnal cycle).  Modelled as a
-       fraction of the fitted |bstar| value with a minimum floor for
+       fraction of the fitted \|bstar\| value with a minimum floor for
        low-drag objects.
 
     2. **Age growth** — atmospheric density varies with solar activity
        (F10.7 index, 27-day solar-rotation cycle, solar-cycle envelope).
        A TLE's fitted bstar does not track these changes, so uncertainty
-       grows at roughly 10 % of |bstar| per day.  By 7 days the bstar
+       grows at roughly 10 % of \|bstar\| per day.  By 7 days the bstar
        estimate is effectively unconstrained; by 3 days it has roughly
        doubled from its epoch value.
 
@@ -725,7 +725,7 @@ def tle_bstar_sigma(
 
     This σ is suitable as the standard deviation of a Gaussian or
     half-normal prior on bstar in Bayesian TLE fitting.  For a
-    log-normal prior on |bstar|, use this value divided by |bstar| as
+    log-normal prior on \|bstar\|, use this value divided by \|bstar\| as
     the log-scale σ.
 
     Parameters

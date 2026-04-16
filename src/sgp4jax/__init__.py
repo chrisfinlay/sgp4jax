@@ -136,20 +136,18 @@ def satrec_from_elements(
 
     Examples
     --------
-
-        import sgp4jax, jax.numpy as jnp
-
-        sat = sgp4jax.satrec_from_elements(
-            inclo=0.9006,   # 51.6°
-            nodeo=1.2217,
-            ecco=0.0004,
-            argpo=4.6194,
-            mo=3.6160,
-            no_kozai=0.0672,   # ~15.5 rev/day (ISS-like)
-            bstar=2.5e-4,
-            epoch_jd=2458924.686,
-        )
-        r, v, err = sgp4jax.propagate(sat, jnp.array(60.0))
+    >>> import sgp4jax, jax.numpy as jnp
+    >>> sat = sgp4jax.satrec_from_elements(
+    ...     inclo=0.9006,
+    ...     nodeo=1.2217,
+    ...     ecco=0.0004,
+    ...     argpo=4.6194,
+    ...     mo=3.6160,
+    ...     no_kozai=0.0672,
+    ...     bstar=2.5e-4,
+    ...     epoch_jd=2458924.686,
+    ... )
+    >>> r, v, err = sgp4jax.propagate(sat, jnp.array(60.0))
     """
     if gravity is None:
         gravity = WGS72

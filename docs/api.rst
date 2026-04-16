@@ -173,6 +173,12 @@ Gravity Constants
 
 .. autodata:: sgp4jax.WGS84
 
-.. autodata:: sgp4jax.WGS72
+.. data:: sgp4jax.WGS72
 
-.. autodata:: sgp4jax.WGS72OLD
+   WGS-72 Earth gravity constants (default for SGP4).
+   Field names identical to :class:`~sgp4jax._constants.GravityConstants`.
+
+.. data:: sgp4jax.WGS72OLD
+
+   WGS-72 "old" Earth gravity constants (Vallado original).
+   Field names identical to :class:`~sgp4jax._constants.GravityConstants`.
