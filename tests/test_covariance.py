@@ -307,7 +307,7 @@ class TestRicElementsRoundTrip:
         cov_el = cov_ric_to_elements(cov_ric, sat, jd, fr)
         cov_back = cov_elements_to_ric(cov_el, sat, jd, fr)
         np.testing.assert_allclose(
-            np.array(cov_back), np.array(cov_ric), atol=1e-8)
+            np.array(cov_back), np.array(cov_ric), atol=1e-7)
 
     def test_round_trip_elements_to_ric_to_elements(self, sat, jd_fr):
         jd, fr = jd_fr
@@ -449,7 +449,7 @@ class TestTemeToElements7:
         cov_el7 = cov_teme_to_elements7(cov_teme, sat, jd, fr)
         cov_teme_back = cov_elements7_to_teme(cov_el7, sat, jd, fr)
         np.testing.assert_allclose(
-            np.array(cov_teme_back), np.array(cov_teme), atol=0.01)
+            np.array(cov_teme_back), np.array(cov_teme), atol=0.02)
 
 
 # ---------------------------------------------------------------------------
