@@ -28,6 +28,7 @@ import jax.typing
 
 from sgp4jax._types import SatRec
 from sgp4jax._frames import teme_to_gcrf
+from sgp4jax._precision import check_float64, check_satrec_epoch
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +247,8 @@ def kepler_gcrf_positions(
     approximation accurate to < 1 s).  For sub-arcsecond frame accuracy call
     :func:`utc_to_ut1` first and pass the UT1 dates.
     """
-    times_jd = jnp.asarray(times_jd)
+    times_jd = check_float64(times_jd, "times_jd", context="kepler_gcrf_positions")
+    check_satrec_epoch(satrec, context="kepler_gcrf_positions")
     jd_arr = jnp.floor(times_jd)
     fr_arr = times_jd - jd_arr
     r, v = vmap(_kepler_jd_gcrf, (None, 0, 0))(satrec, jd_arr, fr_arr)
@@ -286,7 +288,8 @@ def kepler_gcrf_positions_multi(
     approximation accurate to < 1 s).  For sub-arcsecond frame accuracy call
     :func:`utc_to_ut1` first and pass the UT1 dates.
     """
-    times_jd = jnp.asarray(times_jd)
+    times_jd = check_float64(times_jd, "times_jd", context="kepler_gcrf_positions_multi")
+    check_satrec_epoch(satrec, context="kepler_gcrf_positions_multi")
     jd_arr = jnp.floor(times_jd)
     fr_arr = times_jd - jd_arr
     r, v = vmap(

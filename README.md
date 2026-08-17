@@ -32,10 +32,48 @@ cd sgp4jax
 pip install -e ".[test]"
 ```
 
+## Double precision is required
+
+JAX defaults to single precision. sgp4jax needs `float64` and does **not** flip
+that global switch for you — enable it yourself, before the first JAX
+operation in your program:
+
+```python
+import jax
+jax.config.update("jax_enable_x64", True)
+
+import sgp4jax
+```
+
+or set the environment variable before starting Python:
+
+```bash
+export JAX_ENABLE_X64=1
+```
+
+Importing sgp4jax without double precision raises `RuntimeError`, and every
+entry point that takes an absolute time or a coordinate raises `TypeError`
+if it is handed a `float32` array. Cast your inputs at the source:
+
+```python
+times_jd = jnp.asarray(times_jd, dtype=jnp.float64)
+r_itrf = jnp.asarray(r_itrf, dtype=jnp.float64)
+```
+
+**Why:** a Julian date is ~2.45e6 days, which `float32` resolves to only
+0.25 day; even in the split `(jd, fr)` form the fraction is resolved to
+~5 ms, i.e. ~40 m of along-track motion for a satellite in low Earth orbit.
+Rather than return silently wrong positions, sgp4jax refuses to run.
+Relative times (`tsince`, in minutes from epoch) are not checked, so
+`propagate` and friends still work in single precision at reduced accuracy.
+Full single-precision support is planned for a future release.
+
 ## Quick Start
 
 ```python
 import jax
+jax.config.update("jax_enable_x64", True)
+
 import jax.numpy as jnp
 import sgp4jax
 
@@ -163,6 +201,13 @@ sat_wgs72 = sgp4jax.tle_to_satrec(line1, line2, gravity=sgp4jax.WGS72)
 | `SatRec` | NamedTuple holding all satellite state (JAX arrays) |
 | `make_satrec(**kwargs)` | Create a SatRec with defaults of 0.0 for unspecified fields |
 | `WGS84`, `WGS72`, `WGS72OLD` | Gravity model constants |
+
+### Precision
+
+| Function / Object | Description |
+|---|---|
+| `x64_enabled()` | `True` when JAX double precision is enabled |
+| `require_x64()` | Raise `RuntimeError` unless double precision is enabled |
 
 ## Documentation
 

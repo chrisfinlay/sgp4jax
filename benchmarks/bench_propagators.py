@@ -21,6 +21,10 @@ import time
 from functools import partial
 
 import jax
+
+# sgp4jax requires JAX double precision; enable it before importing.
+jax.config.update("jax_enable_x64", True)
+
 import jax.numpy as jnp
 import numpy as np
 from sgp4.api import Satrec as RefSatrec, SatrecArray, WGS84 as REF_WGS84

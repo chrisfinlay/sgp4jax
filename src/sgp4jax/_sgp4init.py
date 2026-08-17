@@ -5,6 +5,7 @@ import jax.typing
 import jax.numpy as jnp
 
 from sgp4jax._constants import GravityConstants
+from sgp4jax._precision import require_x64
 from sgp4jax._types import SatRec
 from sgp4jax._initl import initl
 from sgp4jax._dscom import dscom
@@ -50,7 +51,13 @@ def sgp4init(
 
     Returns:
         SatRec NamedTuple
+
+    Raises:
+        RuntimeError: JAX double precision (float64) is disabled.  Every
+            SatRec field is stored as float64, so x64 must be enabled --
+            see :mod:`sgp4jax._precision`.
     """
+    require_x64("sgp4init")
     temp4 = 1.5e-12
 
     tumin, mu, radiusearthkm, xke, j2, j3, j4, j3oj2 = whichconst

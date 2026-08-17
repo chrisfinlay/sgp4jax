@@ -18,6 +18,12 @@ import jax
 import jax.numpy as jnp
 import jax.typing
 
+from sgp4jax._precision import check_float64, check_jd_fr, require_x64
+
+# The coefficient tables below are float64 literals, so double precision has
+# to be available before this module is imported.
+require_x64()
+
 # ---------------------------------------------------------------------------
 # Load nutation coefficient tables at import time
 # ---------------------------------------------------------------------------
@@ -658,6 +664,25 @@ def _earth_orientation(
 
 
 @jax.jit
+def _teme_to_gcrf(
+    r_teme: jax.Array,
+    v_teme: jax.Array,
+    jd: jax.Array,
+    fr: jax.Array,
+) -> tuple[jax.Array, jax.Array]:
+    M, gast_rad = _earth_orientation(jd, fr)
+    theta, _ = _theta_gmst1982(jd, fr)
+
+    # TEME rotation: angle = theta_GMST1982 - GAST (in radians)
+    angle = theta - gast_rad
+    R = (_rot_z(angle) @ M).T
+
+    r_gcrf = R @ r_teme
+    v_gcrf = R @ v_teme
+
+    return r_gcrf, v_gcrf
+
+
 def teme_to_gcrf(
     r_teme: jax.typing.ArrayLike,
     v_teme: jax.typing.ArrayLike,
@@ -690,21 +715,30 @@ def teme_to_gcrf(
         Position in GCRF frame, km.
     v_gcrf : jax.Array, shape (3,)
         Velocity in GCRF frame, km/s.
+
+    Raises
+    ------
+    TypeError
+        Any argument is not float64.
     """
-    M, gast_rad = _earth_orientation(jd, fr)
-    theta, _ = _theta_gmst1982(jd, fr)
-
-    # TEME rotation: angle = theta_GMST1982 - GAST (in radians)
-    angle = theta - gast_rad
-    R = (_rot_z(angle) @ M).T
-
-    r_gcrf = R @ r_teme
-    v_gcrf = R @ v_teme
-
-    return r_gcrf, v_gcrf
+    ctx = "teme_to_gcrf"
+    r_teme = check_float64(r_teme, "r_teme", context=ctx)
+    v_teme = check_float64(v_teme, "v_teme", context=ctx)
+    jd, fr = check_jd_fr(jd, fr, context=ctx)
+    return _teme_to_gcrf(r_teme, v_teme, jd, fr)  # type: ignore[no-any-return]
 
 
 @jax.jit
+def _itrf_to_gcrf(
+    r_itrf: jax.Array,
+    jd: jax.Array,
+    fr: jax.Array,
+) -> jax.Array:
+    M, gast_rad = _earth_orientation(jd, fr)
+    R = M.T @ _rot_z(gast_rad)
+    return R @ r_itrf
+
+
 def itrf_to_gcrf(
     r_itrf: jax.typing.ArrayLike,
     jd: jax.typing.ArrayLike,
@@ -732,13 +766,29 @@ def itrf_to_gcrf(
     -------
     r_gcrf : jax.Array, shape (3,)
         Position in GCRF frame, km.
+
+    Raises
+    ------
+    TypeError
+        Any argument is not float64.
     """
-    M, gast_rad = _earth_orientation(jd, fr)
-    R = M.T @ _rot_z(gast_rad)
-    return R @ r_itrf
+    ctx = "itrf_to_gcrf"
+    r_itrf = check_float64(r_itrf, "r_itrf", context=ctx)
+    jd, fr = check_jd_fr(jd, fr, context=ctx)
+    return _itrf_to_gcrf(r_itrf, jd, fr)  # type: ignore[no-any-return]
 
 
 @jax.jit
+def _gcrf_to_itrf(
+    r_gcrf: jax.Array,
+    jd: jax.Array,
+    fr: jax.Array,
+) -> jax.Array:
+    M, gast_rad = _earth_orientation(jd, fr)
+    R = _rot_z(-gast_rad) @ M
+    return R @ r_gcrf
+
+
 def gcrf_to_itrf(
     r_gcrf: jax.typing.ArrayLike,
     jd: jax.typing.ArrayLike,
@@ -765,7 +815,13 @@ def gcrf_to_itrf(
     -------
     r_itrf : jax.Array, shape (3,)
         Position in ITRF frame, km.
+
+    Raises
+    ------
+    TypeError
+        Any argument is not float64.
     """
-    M, gast_rad = _earth_orientation(jd, fr)
-    R = _rot_z(-gast_rad) @ M
-    return R @ r_gcrf
+    ctx = "gcrf_to_itrf"
+    r_gcrf = check_float64(r_gcrf, "r_gcrf", context=ctx)
+    jd, fr = check_jd_fr(jd, fr, context=ctx)
+    return _gcrf_to_itrf(r_gcrf, jd, fr)  # type: ignore[no-any-return]
