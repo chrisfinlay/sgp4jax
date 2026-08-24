@@ -262,6 +262,34 @@ class TestCovarianceDtype:
             sgp4jax.cov_elements_to_teme(
                 cov, sat, jnp.float32(2458893.5), jnp.float64(0.7))
 
+    def test_ric_rotation_rejects_float32_state(self):
+        r = jnp.array([7000.0, 0.0, 0.0], dtype=jnp.float32)
+        v = jnp.array([0.0, 7.5, 0.0], dtype=jnp.float32)
+        with pytest.raises(TypeError, match="`r`"):
+            sgp4jax.ric_rotation(r, v)
+        with pytest.raises(TypeError, match="`v`"):
+            sgp4jax.ric_rotation(r.astype(jnp.float64), v)
+
+    @pytest.mark.parametrize("name", ["cov_ric_to_teme", "cov_teme_to_ric"])
+    def test_ric_cov_transforms_reject_float32_state(self, name):
+        fn = getattr(sgp4jax, name)
+        cov = jnp.eye(6)
+        r = jnp.array([7000.0, 0.0, 0.0], dtype=jnp.float32)
+        v = jnp.array([0.0, 7.5, 0.0], dtype=jnp.float32)
+        with pytest.raises(TypeError, match="`r`"):
+            fn(cov, r, v)
+        with pytest.raises(TypeError, match="`v`"):
+            fn(cov, r.astype(jnp.float64), v)
+
+    def test_ric_transforms_accept_float64(self, sat):
+        r, v, _ = sgp4jax.propagate(sat, jnp.float64(100.0))
+        cov = jnp.eye(6)
+        assert sgp4jax.ric_rotation(r, v).dtype == jnp.float64
+        cov_teme = sgp4jax.cov_ric_to_teme(cov, r, v)
+        cov_ric = sgp4jax.cov_teme_to_ric(cov_teme, r, v)
+        np.testing.assert_allclose(
+            np.asarray(cov_ric), np.asarray(cov), atol=1e-12)
+
 
 # ---------------------------------------------------------------------------
 # IERS

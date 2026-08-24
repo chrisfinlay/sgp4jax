@@ -31,7 +31,8 @@ pipeline, so bstar's influence on the trajectory is captured.
    a 6-dimensional state cannot fully constrain 7 element dimensions.
 
 Every function taking a split Julian date requires ``jd`` and ``fr`` to be
-float64 arrays and raises :exc:`TypeError` otherwise — see
+float64 arrays, and those taking a state vector require ``r`` and ``v`` to be
+float64; both raise :exc:`TypeError` otherwise — see
 :mod:`sgp4jax._precision`.
 """
 
@@ -44,7 +45,7 @@ import jax.typing
 from sgp4jax._types import SatRec
 from sgp4jax._constants import GravityConstants
 from sgp4jax._kepler import _kepler_rv_teme
-from sgp4jax._precision import check_jd_fr, check_satrec_epoch
+from sgp4jax._precision import check_float64, check_jd_fr, check_satrec_epoch
 from sgp4jax._sgp4init import sgp4init
 from sgp4jax._propagation import sgp4 as _sgp4
 
@@ -80,7 +81,14 @@ def ric_rotation(
     -------
     T : jax.Array, shape (3, 3)
         Rotation matrix.
+
+    Raises
+    ------
+    TypeError
+        *r* or *v* is not float64.
     """
+    r = check_float64(r, "r", context="ric_rotation")
+    v = check_float64(v, "v", context="ric_rotation")
     r_hat = r / jnp.linalg.norm(r)
     h = jnp.cross(r, v)
     c_hat = h / jnp.linalg.norm(h)
@@ -116,7 +124,14 @@ def cov_ric_to_teme(
     -------
     jax.Array, shape (6, 6)
         Covariance in TEME frame.
+
+    Raises
+    ------
+    TypeError
+        *r* or *v* is not float64.
     """
+    r = check_float64(r, "r", context="cov_ric_to_teme")
+    v = check_float64(v, "v", context="cov_ric_to_teme")
     T6 = _ric_rotation_6(r, v)
     return T6 @ jnp.asarray(cov_ric) @ T6.T
 
@@ -141,7 +156,14 @@ def cov_teme_to_ric(
     -------
     jax.Array, shape (6, 6)
         Covariance in RIC frame.
+
+    Raises
+    ------
+    TypeError
+        *r* or *v* is not float64.
     """
+    r = check_float64(r, "r", context="cov_teme_to_ric")
+    v = check_float64(v, "v", context="cov_teme_to_ric")
     T6 = _ric_rotation_6(r, v)
     return T6.T @ jnp.asarray(cov_teme) @ T6
 
