@@ -37,7 +37,10 @@ markers = [
 addopts = "-m 'not network and not perf'"
 
 [tool.mypy]
-python_version = "3.10"
+# numpy >= 2.5 ships PEP 695 `type` statements in its stubs, which mypy
+# only parses when targeting 3.12+.  Runtime support for 3.10 is covered
+# by the test matrix.
+python_version = "3.12"
 warn_return_any = true
 warn_unused_ignores = true
 [[tool.mypy.overrides]]

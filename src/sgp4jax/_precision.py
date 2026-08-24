@@ -50,7 +50,7 @@ fraction below ~5 ms, i.e. ~40 m along-track for a LEO satellite.\
 
 def x64_enabled() -> bool:
     """Return ``True`` when JAX is configured for double precision."""
-    return bool(jax.config.jax_enable_x64)  # type: ignore[attr-defined]
+    return bool(jax.config.read("jax_enable_x64"))
 
 
 def require_x64(context: str | None = None) -> None:
