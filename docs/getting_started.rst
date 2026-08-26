@@ -1,12 +1,67 @@
 Getting Started
 ===============
 
+.. _double-precision:
+
+Double precision (required)
+---------------------------
+
+JAX defaults to single precision.  sgp4jax needs ``float64`` and deliberately
+does **not** change that global setting on your behalf, so enable it yourself
+before the first JAX operation in your program:
+
+.. code-block:: python
+
+   import jax
+   jax.config.update("jax_enable_x64", True)
+
+   import sgp4jax
+
+or set the environment variable before starting Python:
+
+.. code-block:: bash
+
+   export JAX_ENABLE_X64=1
+
+Importing sgp4jax without double precision raises :exc:`RuntimeError`.  Once
+enabled, every entry point that takes an absolute time (``jd``, ``fr``,
+``times_jd``, ``epoch_jd``) or a coordinate (``r_teme``, ``r_itrf``,
+``r_gcrf``) rejects ``float32`` input with :exc:`TypeError`, so cast at the
+source:
+
+.. code-block:: python
+
+   times_jd = jnp.asarray(times_jd, dtype=jnp.float64)
+   r_itrf = jnp.asarray(r_itrf, dtype=jnp.float64)
+
+Casting an array that was *computed* in single precision does not recover the
+lost digits — build the values in ``float64`` in the first place.
+
+Why float64
+~~~~~~~~~~~
+
+A Julian date is ~2.45e6 days, which ``float32`` resolves to only 0.25 day.
+Even in the split ``(jd, fr)`` form used throughout sgp4jax the fraction is
+resolved to ~5 ms, i.e. ~40 m of along-track motion for a satellite in low
+Earth orbit, and geocentric coordinates (~7e3 km) resolve to ~0.5 mm before
+the frame rotations amplify the error.  Rather than return silently wrong
+positions, sgp4jax refuses to run.
+
+Relative times — ``tsince``, in minutes from epoch — are not checked, so
+:func:`~sgp4jax.propagate` and the other ``tsince`` propagators still run in
+single precision at reduced accuracy.  Full single-precision support is
+planned for a future release.  Use :func:`~sgp4jax.x64_enabled` to test the
+setting, and :func:`~sgp4jax.require_x64` to assert it in your own code.
+
 Basic propagation
 -----------------
 
 Parse a TLE and propagate to a time offset (minutes from epoch):
 
 .. code-block:: python
+
+   import jax
+   jax.config.update("jax_enable_x64", True)
 
    import jax.numpy as jnp
    import sgp4jax

@@ -1,6 +1,18 @@
 API Reference
 =============
 
+.. note::
+   All functions below require JAX double precision, and those taking an
+   absolute time or a coordinate require ``float64`` arrays — see
+   :ref:`double-precision`.
+
+Precision
+---------
+
+.. autofunction:: sgp4jax.x64_enabled
+
+.. autofunction:: sgp4jax.require_x64
+
 Core Functions
 --------------
 

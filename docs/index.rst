@@ -14,6 +14,11 @@ written in JAX, you get:
 - **Automatic differentiation** — compute gradients of position/velocity
   with respect to time (or any input) via ``jax.grad``
 
+.. important::
+   sgp4jax requires JAX double precision.  Enable it with
+   ``jax.config.update("jax_enable_x64", True)`` before importing, or set
+   ``JAX_ENABLE_X64=1`` in the environment — see :ref:`double-precision`.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents

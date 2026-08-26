@@ -2,6 +2,12 @@
 
 from importlib.metadata import version as _version
 
+# sgp4jax requires JAX double precision and raises on import without it, so
+# enable it before autodoc imports the package.
+import jax
+
+jax.config.update("jax_enable_x64", True)
+
 project = "sgp4jax"
 copyright = "2024, sgp4jax contributors"
 author = "sgp4jax contributors"

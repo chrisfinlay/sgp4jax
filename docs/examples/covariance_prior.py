@@ -30,6 +30,11 @@ correlations you care about are *posterior* correlations that emerge
 naturally from the likelihood; they should not be baked into the prior.
 """
 
+import jax
+
+# sgp4jax requires JAX double precision; enable it before importing.
+jax.config.update("jax_enable_x64", True)
+
 import jax.numpy as jnp
 
 from sgp4jax import (

@@ -12,6 +12,7 @@ from sgp4jax._propagation import sgp4 as _propagate_full
 from sgp4jax._propagation_leo import sgp4_leo as _propagate_leo
 from sgp4jax._propagation_sdp4_nr import sgp4_sdp4_nr as _propagate_sdp4_nr
 from sgp4jax._frames import teme_to_gcrf as _teme_to_gcrf
+from sgp4jax._precision import check_float64, check_satrec_epoch
 
 
 def _slice_satrec(satrec: SatRec, indices: np.ndarray) -> SatRec:
@@ -97,8 +98,14 @@ def gcrf_positions_mixed(
         Positions in GCRF frame, km.
     v_gcrf : jax.Array, shape (N, M, 3)
         Velocities in GCRF frame, km/s.
+
+    Raises
+    ------
+    TypeError
+        *times_jd* or the SatRec epoch is not float64.
     """
-    times_jd = jnp.asarray(times_jd)
+    times_jd = check_float64(times_jd, "times_jd", context="gcrf_positions_mixed")
+    check_satrec_epoch(satrec_batch, context="gcrf_positions_mixed")
     jd_arr   = jnp.floor(times_jd)
     fr_arr   = times_jd - jd_arr
 

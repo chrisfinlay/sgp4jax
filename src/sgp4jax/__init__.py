@@ -1,7 +1,28 @@
-"""JAX-compatible SGP4 satellite propagation."""
+"""JAX-compatible SGP4 satellite propagation.
+
+sgp4jax requires JAX double precision (``float64``), which JAX leaves
+disabled by default.  Enable it before importing::
+
+    import jax
+    jax.config.update("jax_enable_x64", True)
+    import sgp4jax
+
+or set ``JAX_ENABLE_X64=1`` in the environment.  Importing sgp4jax without
+double precision raises :exc:`RuntimeError`, and the entry points reject
+single-precision times and coordinates — see :mod:`sgp4jax._precision`.
+"""
 
 import jax
-jax.config.update("jax_enable_x64", True)
+
+from sgp4jax._precision import (
+    x64_enabled,
+    require_x64,
+    check_float64,
+    check_jd_fr,
+    check_satrec_epoch,
+)
+
+require_x64()
 
 from jax import vmap
 import jax.typing
@@ -31,6 +52,7 @@ from sgp4jax._covariance import (
 )
 
 __all__ = [
+    "x64_enabled", "require_x64",
     "SatRec", "make_satrec",
     "WGS72OLD", "WGS72", "WGS84",
     "tle_to_satrec", "tles_to_satrec", "satrec_from_elements",
@@ -151,6 +173,7 @@ def satrec_from_elements(
     """
     if gravity is None:
         gravity = WGS72
+    check_float64(epoch_jd, "epoch_jd", context="satrec_from_elements")
     jd_whole = float(int(epoch_jd))
     jd_frac = epoch_jd - jd_whole
     epoch = jd_whole + jd_frac - 2433281.5
@@ -184,7 +207,14 @@ def propagate_jd(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.ArrayL
         Velocity in TEME frame, km/s.
     error : jax.Array
         Error code (0 = success).
+
+    Raises
+    ------
+    TypeError
+        *jd*, *fr* or the SatRec epoch is not float64.
     """
+    jd, fr = check_jd_fr(jd, fr, context="propagate_jd")
+    check_satrec_epoch(satrec, context="propagate_jd")
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
     return propagate(satrec, tsince)  # type: ignore[no-any-return]
@@ -213,7 +243,14 @@ def propagate_jd_leo(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.Ar
         Velocity in TEME frame, km/s.
     error : jax.Array
         Error code (0 = success).
+
+    Raises
+    ------
+    TypeError
+        *jd*, *fr* or the SatRec epoch is not float64.
     """
+    jd, fr = check_jd_fr(jd, fr, context="propagate_jd_leo")
+    check_satrec_epoch(satrec, context="propagate_jd_leo")
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
     return propagate_leo(satrec, tsince)  # type: ignore[no-any-return]
@@ -243,7 +280,14 @@ def propagate_jd_sdp4_nr(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typin
         Velocity in TEME frame, km/s.
     error : jax.Array
         Error code (0 = success).
+
+    Raises
+    ------
+    TypeError
+        *jd*, *fr* or the SatRec epoch is not float64.
     """
+    jd, fr = check_jd_fr(jd, fr, context="propagate_jd_sdp4_nr")
+    check_satrec_epoch(satrec, context="propagate_jd_sdp4_nr")
     tsince = ((jd - satrec.jdsatepoch) * 1440.0 +
               (fr - satrec.jdsatepochF) * 1440.0)
     return propagate_sdp4_nr(satrec, tsince)  # type: ignore[no-any-return]
@@ -267,7 +311,13 @@ def propagate_gcrf(satrec: SatRec, tsince: jax.typing.ArrayLike) -> tuple[jax.Ar
         Velocity in GCRF frame, km/s.
     error : jax.Array
         Error code (0 = success).
+
+    Raises
+    ------
+    TypeError
+        The SatRec epoch is not float64.
     """
+    check_satrec_epoch(satrec, context="propagate_gcrf")
     r_teme, v_teme, error = propagate(satrec, tsince)
     jd = jnp.array(satrec.jdsatepoch)
     fr = jnp.array(satrec.jdsatepochF) + tsince / 1440.0
@@ -301,7 +351,13 @@ def propagate_jd_gcrf(satrec: SatRec, jd: jax.typing.ArrayLike, fr: jax.typing.A
         Velocity in GCRF frame, km/s.
     error : jax.Array
         Error code (0 = success).
+
+    Raises
+    ------
+    TypeError
+        *jd*, *fr* or the SatRec epoch is not float64.
     """
+    jd, fr = check_jd_fr(jd, fr, context="propagate_jd_gcrf")
     r_teme, v_teme, error = propagate_jd(satrec, jd, fr)
     r_gcrf, v_gcrf = teme_to_gcrf(r_teme, v_teme, jd, fr)
     return r_gcrf, v_gcrf, error
@@ -324,6 +380,8 @@ def gcrf_positions(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tuple[jax.
     v_gcrf : jax.Array, shape (n_times, 3)
         Velocities in GCRF frame, km/s.
     """
+    times_jd = check_float64(times_jd, "times_jd", context="gcrf_positions")
+    check_satrec_epoch(satrec, context="gcrf_positions")
     jd = jnp.floor(times_jd)
     fr = times_jd - jd
     r, v, _ = vmap(propagate_jd_gcrf, (None, 0, 0))(satrec, jd, fr)
@@ -348,6 +406,8 @@ def gcrf_positions_multi(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> tupl
     v_gcrf : jax.Array, shape (n_sat, n_times, 3)
         Velocities in GCRF frame, km/s.
     """
+    times_jd = check_float64(times_jd, "times_jd", context="gcrf_positions_multi")
+    check_satrec_epoch(satrec, context="gcrf_positions_multi")
     jd = jnp.floor(times_jd)
     fr = times_jd - jd
     r, v, _ = vmap(
@@ -389,6 +449,8 @@ def gcrf_positions_multi_leo(satrec: SatRec, times_jd: jax.typing.ArrayLike) -> 
     v_gcrf : jax.Array, shape (n_sat, n_times, 3)
         Velocities in GCRF frame, km/s.
     """
+    times_jd = check_float64(times_jd, "times_jd", context="gcrf_positions_multi_leo")
+    check_satrec_epoch(satrec, context="gcrf_positions_multi_leo")
     jd = jnp.floor(times_jd)
     fr = times_jd - jd
     r, v, _ = vmap(
@@ -419,6 +481,8 @@ def gcrf_positions_multi_sdp4_nr(satrec: SatRec, times_jd: jax.typing.ArrayLike)
     v_gcrf : jax.Array, shape (n_sat, n_times, 3)
         Velocities in GCRF frame, km/s.
     """
+    times_jd = check_float64(times_jd, "times_jd", context="gcrf_positions_multi_sdp4_nr")
+    check_satrec_epoch(satrec, context="gcrf_positions_multi_sdp4_nr")
     jd = jnp.floor(times_jd)
     fr = times_jd - jd
     r, v, _ = vmap(

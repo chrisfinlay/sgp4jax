@@ -29,6 +29,11 @@ pipeline, so bstar's influence on the trajectory is captured.
    Σ_el7 = J† Σ_rv (J†)ᵀ uses the right pseudo-inverse
    J† = Jᵀ(JJᵀ)⁻¹ and produces a **rank-deficient** (rank ≤ 6) matrix —
    a 6-dimensional state cannot fully constrain 7 element dimensions.
+
+Every function taking a split Julian date requires ``jd`` and ``fr`` to be
+float64 arrays, and those taking a state vector require ``r`` and ``v`` to be
+float64; both raise :exc:`TypeError` otherwise — see
+:mod:`sgp4jax._precision`.
 """
 
 from __future__ import annotations
@@ -40,6 +45,7 @@ import jax.typing
 from sgp4jax._types import SatRec
 from sgp4jax._constants import GravityConstants
 from sgp4jax._kepler import _kepler_rv_teme
+from sgp4jax._precision import check_float64, check_jd_fr, check_satrec_epoch
 from sgp4jax._sgp4init import sgp4init
 from sgp4jax._propagation import sgp4 as _sgp4
 
@@ -75,7 +81,14 @@ def ric_rotation(
     -------
     T : jax.Array, shape (3, 3)
         Rotation matrix.
+
+    Raises
+    ------
+    TypeError
+        *r* or *v* is not float64.
     """
+    r = check_float64(r, "r", context="ric_rotation")
+    v = check_float64(v, "v", context="ric_rotation")
     r_hat = r / jnp.linalg.norm(r)
     h = jnp.cross(r, v)
     c_hat = h / jnp.linalg.norm(h)
@@ -111,7 +124,14 @@ def cov_ric_to_teme(
     -------
     jax.Array, shape (6, 6)
         Covariance in TEME frame.
+
+    Raises
+    ------
+    TypeError
+        *r* or *v* is not float64.
     """
+    r = check_float64(r, "r", context="cov_ric_to_teme")
+    v = check_float64(v, "v", context="cov_ric_to_teme")
     T6 = _ric_rotation_6(r, v)
     return T6 @ jnp.asarray(cov_ric) @ T6.T
 
@@ -136,7 +156,14 @@ def cov_teme_to_ric(
     -------
     jax.Array, shape (6, 6)
         Covariance in RIC frame.
+
+    Raises
+    ------
+    TypeError
+        *r* or *v* is not float64.
     """
+    r = check_float64(r, "r", context="cov_teme_to_ric")
+    v = check_float64(v, "v", context="cov_teme_to_ric")
     T6 = _ric_rotation_6(r, v)
     return T6.T @ jnp.asarray(cov_teme) @ T6
 
@@ -188,6 +215,8 @@ def elements_jacobian(
         ``(r_x, r_y, r_z, v_x, v_y, v_z)``; columns to
         ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
     """
+    jd, fr = check_jd_fr(jd, fr, context="elements_jacobian")
+    check_satrec_epoch(satrec, context="elements_jacobian")
     elements = jnp.array([
         satrec.inclo, satrec.nodeo, satrec.ecco,
         satrec.argpo, satrec.mo, satrec.no_kozai,
@@ -230,6 +259,8 @@ def cov_elements_to_teme(
     jax.Array, shape (6, 6)
         Covariance in TEME Cartesian frame.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_elements_to_teme")
+    check_satrec_epoch(satrec, context="cov_elements_to_teme")
     J = elements_jacobian(satrec, jd, fr)
     return J @ jnp.asarray(cov_elements) @ J.T
 
@@ -263,6 +294,8 @@ def cov_teme_to_elements(
         Covariance in element space.
         Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_teme_to_elements")
+    check_satrec_epoch(satrec, context="cov_teme_to_elements")
     J = elements_jacobian(satrec, jd, fr)
     J_inv = jnp.linalg.inv(J)
     return J_inv @ jnp.asarray(cov_teme) @ J_inv.T  # type: ignore[no-any-return]
@@ -302,6 +335,8 @@ def cov_ric_to_elements(
         Covariance in element space.
         Element ordering: ``(inclo, nodeo, ecco, argpo, mo, no_kozai)``.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_ric_to_elements")
+    check_satrec_epoch(satrec, context="cov_ric_to_elements")
     r_teme, v_teme = _kepler_rv_teme(
         satrec.inclo, satrec.nodeo, satrec.ecco,
         satrec.argpo, satrec.mo, satrec.no_kozai,
@@ -340,6 +375,8 @@ def cov_elements_to_ric(
     jax.Array, shape (6, 6)
         Covariance in RIC frame.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_elements_to_ric")
+    check_satrec_epoch(satrec, context="cov_elements_to_ric")
     r_teme, v_teme = _kepler_rv_teme(
         satrec.inclo, satrec.nodeo, satrec.ecco,
         satrec.argpo, satrec.mo, satrec.no_kozai,
@@ -406,6 +443,8 @@ def elements7_jacobian(
         ``(r_x, r_y, r_z, v_x, v_y, v_z)``; columns to
         ``(inclo, nodeo, ecco, argpo, mo, no_kozai, bstar)``.
     """
+    jd, fr = check_jd_fr(jd, fr, context="elements7_jacobian")
+    check_satrec_epoch(satrec, context="elements7_jacobian")
     elements7 = jnp.array([
         satrec.inclo, satrec.nodeo, satrec.ecco,
         satrec.argpo, satrec.mo, satrec.no_kozai, satrec.bstar,
@@ -444,6 +483,8 @@ def cov_elements7_to_teme(
     jax.Array, shape (6, 6)
         Covariance in TEME Cartesian frame.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_elements7_to_teme")
+    check_satrec_epoch(satrec, context="cov_elements7_to_teme")
     J = elements7_jacobian(satrec, jd, fr)  # (6, 7)
     return J @ jnp.asarray(cov_elements7) @ J.T
 
@@ -483,6 +524,8 @@ def cov_teme_to_elements7(
     jax.Array, shape (7, 7)
         Covariance in 7-element space.  Rank ≤ 6.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_teme_to_elements7")
+    check_satrec_epoch(satrec, context="cov_teme_to_elements7")
     J = elements7_jacobian(satrec, jd, fr)  # (6, 7)
     # Right pseudo-inverse: J† = Jᵀ (J Jᵀ)⁻¹,  shape (7, 6)
     JJT_inv = jnp.linalg.inv(J @ J.T)
@@ -519,6 +562,8 @@ def cov_elements7_to_ric(
     jax.Array, shape (6, 6)
         Covariance in RIC frame.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_elements7_to_ric")
+    check_satrec_epoch(satrec, context="cov_elements7_to_ric")
     r_teme, v_teme, _ = _sgp4(satrec, (jd - satrec.jdsatepoch + fr - satrec.jdsatepochF) * 1440.0)
     cov_teme = cov_elements7_to_teme(cov_elements7, satrec, jd, fr)
     return cov_teme_to_ric(cov_teme, r_teme, v_teme)
@@ -557,6 +602,8 @@ def cov_ric_to_elements7(
     jax.Array, shape (7, 7)
         Covariance in 7-element space.  Rank ≤ 6.
     """
+    jd, fr = check_jd_fr(jd, fr, context="cov_ric_to_elements7")
+    check_satrec_epoch(satrec, context="cov_ric_to_elements7")
     r_teme, v_teme, _ = _sgp4(satrec, (jd - satrec.jdsatepoch + fr - satrec.jdsatepochF) * 1440.0)
     cov_teme = cov_ric_to_teme(cov_ric, r_teme, v_teme)
     return cov_teme_to_elements7(cov_teme, satrec, jd, fr)
@@ -646,6 +693,8 @@ def tle_ric_covariance(
         ``[R, T, N, Ṙ, Ṫ, Ṅ]``.  Units: km² (position block),
         km²/s² (velocity block).  Cross-terms are zero.
     """
+    jd, fr = check_jd_fr(jd, fr, context="tle_ric_covariance")
+    check_satrec_epoch(satrec, context="tle_ric_covariance")
     # --- Time since TLE epoch (days), symmetric about epoch ---
     dt_days = jnp.abs(
         jd - satrec.jdsatepoch + fr - satrec.jdsatepochF
@@ -751,6 +800,8 @@ def tle_bstar_sigma(
     sigma_bstar : jax.Array
         Scalar 1-σ uncertainty on ``bstar``, km⁻¹.
     """
+    jd, fr = check_jd_fr(jd, fr, context="tle_bstar_sigma")
+    check_satrec_epoch(satrec, context="tle_bstar_sigma")
     dt_days = jnp.abs(
         jd - satrec.jdsatepoch + fr - satrec.jdsatepochF
     )

@@ -22,6 +22,10 @@ Workflow:
 # -------
 
 import jax
+
+# sgp4jax requires JAX double precision; enable it before importing.
+jax.config.update("jax_enable_x64", True)
+
 import jax.numpy as jnp
 from jax.scipy.optimize import minimize as jax_minimize
 

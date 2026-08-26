@@ -36,6 +36,8 @@ import jax
 import jax.numpy as jnp
 import jax.typing
 
+from sgp4jax._precision import check_jd_fr, require_x64
+
 _IERS_URLS = [
     "https://datacenter.iers.org/data/9/finals2000A.all",
     "https://maia.usno.navy.mil/ser7/finals2000A.all",
@@ -131,6 +133,7 @@ def update_iers_table(
     """
     global _mjd, _dut1
 
+    require_x64("update_iers_table")
     cache_path = Path(cache_path) if cache_path else _DEFAULT_CACHE
     cache_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -174,6 +177,7 @@ def load_iers_table(
     """
     global _mjd, _dut1
 
+    require_x64("load_iers_table")
     cache_path = Path(cache_path) if cache_path else _DEFAULT_CACHE
     if not cache_path.exists():
         raise FileNotFoundError(
@@ -223,6 +227,8 @@ def utc_to_ut1(
     RuntimeError
         IERS table not loaded — call :func:`update_iers_table` or
         :func:`load_iers_table` first.
+    TypeError
+        *jd_utc* or *fr_utc* is not float64.
     """
     if _mjd is None or _dut1 is None:
         raise RuntimeError(
@@ -230,10 +236,13 @@ def utc_to_ut1(
             "Run:  import sgp4jax; sgp4jax.update_iers_table()"
         )
 
+    jd_utc, fr_utc = check_jd_fr(
+        jd_utc, fr_utc, context="utc_to_ut1", names=("jd_utc", "fr_utc"))
+
     mjd = jd_utc + fr_utc - 2400000.5
     dut1 = jnp.interp(mjd, _mjd, _dut1)
     fr_ut1 = fr_utc + dut1 / 86400.0
-    return jd_utc, fr_ut1  # type: ignore[return-value]
+    return jd_utc, fr_ut1
 
 
 # ---------------------------------------------------------------------------

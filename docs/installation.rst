@@ -17,6 +17,29 @@ From source
    cd sgp4jax
    pip install -e ".[test]"
 
+Enabling double precision
+-------------------------
+
+sgp4jax requires JAX double precision, which JAX leaves off by default.
+Enable it before the first JAX operation in your program:
+
+.. code-block:: python
+
+   import jax
+   jax.config.update("jax_enable_x64", True)
+
+   import sgp4jax
+
+or set the environment variable before starting Python:
+
+.. code-block:: bash
+
+   export JAX_ENABLE_X64=1
+
+Importing sgp4jax without it raises :exc:`RuntimeError`.  See
+:ref:`double-precision` for the rationale and for what this means for the
+dtype of your own arrays.
+
 Optional dependencies
 ---------------------
 
